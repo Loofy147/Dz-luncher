@@ -23,6 +23,7 @@ from app.services import (
     get_public_campaign, participant_rewards, publish_campaign, public_campaigns,
     register_user, submit_response, update_draft,
 )
+from app.survey_templates import get_survey_template, list_survey_templates
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
@@ -191,12 +192,32 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
         return _render(request, "business_dashboard.html", {"campaigns": campaigns, "title": "مساحة المشاريع"})
 
     @app.get("/business/surveys/new", response_class=HTMLResponse)
-    def new_survey_page(request: Request):
+    def new_survey_page(request: Request, template: str | None = None):
         _require_identity(request, role="business")
+        selected_template = None
+        initial_payload = None
+        if template:
+            selected_template = get_survey_template(template)
+            if selected_template is None:
+                raise ServiceError("قالب الاستبيان غير موجود.", 404, "survey_template_not_found")
+            initial_payload = _safe_json(selected_template["payload"])
         return _render(request, "survey_builder.html", {
             "title": "إنشاء استبيان", "mode": "create", "slug": "", "initial_questions": None,
             "initial_quotas": "{}", "initial_hypotheses": "[]", "campaign": None,
+            "templates": list_survey_templates(), "selected_template": selected_template,
+            "initial_payload": initial_payload,
         })
+
+    @app.get("/api/survey-templates")
+    def survey_templates_api():
+        return {"templates": list_survey_templates()}
+
+    @app.get("/api/survey-templates/{template_id}")
+    def survey_template_api(template_id: str):
+        template = get_survey_template(template_id)
+        if template is None:
+            raise ServiceError("قالب الاستبيان غير موجود.", 404, "survey_template_not_found")
+        return template
 
     @app.post("/business/surveys")
     async def create_survey_action(request: Request):

@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="page-heading compact-heading"><div><p class="eyebrow">مصمم الاستبيانات</p><h1>{% if mode == 'edit' %}تعديل المسودة{% else %}إنشاء استبيان جديد{% endif %}</h1><p>ابدأ بالقرار التجاري المطلوب. يمكنك إضافة أسئلة التأهيل والتفرّع وتحديد الحصص بصيغة موثّقة.</p></div><a class="text-link" href="/business">← العودة للمشاريع</a></section>
+
+{% if mode == 'create' %}
+<section class="template-library" aria-labelledby="template-library-title">
+  <div class="section-heading template-library-heading">
+    <div><p class="eyebrow">مكتبة أدوات البحث</p><h2 id="template-library-title">ابدأ من دراسة جاهزة للتخصيص</h2><p>القوالب تحفظ الوقت في التصميم، لكنها لا تعوّض تحديد الفئة والسياق أو مراجعة الخصوصية. اختيار القالب يملأ النموذج فقط؛ لا ينشئ حملة ولا ينشرها.</p></div>
+    <a class="text-link" href="/business/surveys/new">بدء نموذج فارغ</a>
+  </div>
+  <div class="template-grid">
+    {% for item in templates %}
+    <article class="template-card{% if selected_template and selected_template.id == item.id %} template-card-selected{% endif %}">
+      <div class="template-card-top"><span class="template-category">{{ item.category }}</span><span class="template-duration">{{ item.duration_minutes }} د</span></div>
+      <h3>{{ item.name }}</h3>
+      <p>{{ item.summary }}</p>
+      <div class="template-decision"><strong>القرار:</strong> {{ item.decision }}</div>
+      <div class="template-meta"><span>هدف مبدئي: {{ item.target_completes }}</span><span>قراءة أولية من {{ item.minimum_interpretable_n }} فأكثر</span></div>
+      <a class="button {% if selected_template and selected_template.id == item.id %}button-primary{% else %}button-secondary{% endif %} button-block" href="/business/surveys/new?template={{ item.id }}">
+        {% if selected_template and selected_template.id == item.id %}القالب المحدد — مراجعة{% else %}استخدم هذا القالب{% endif %}
+      </a>
+    </article>
+    {% endfor %}
+  </div>
+  {% if selected_template %}
+  <div class="template-selected-detail">
+    <div><p class="eyebrow">قالب محمّل في النموذج</p><h3>{{ selected_template.name }}</h3><p><strong>الفئة المستهدفة:</strong> {{ selected_template.audience }}</p><p><strong>تعليمات التنفيذ:</strong> {{ selected_template.fieldwork_protocol }}</p><p><strong>الحصص:</strong> {{ selected_template.quota_guidance }}</p></div>
+    <div><h4>راجع قبل الحفظ والنشر</h4><ul>{% for check in selected_template.launch_checks %}<li>{{ check }}</li>{% endfor %}</ul><p class="template-safety-note">تبدأ القوالب بمكافأة 0 دج وبحالة مسودة. لا تستقبل مشاركات حقيقية حتى تُغلق البوابات القانونية والأمنية والتشغيلية.</p></div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
 <form id="survey-builder" class="builder-form" method="post" action="{% if mode == 'edit' %}/business/surveys/{{ slug }}/edit{% else %}/business/surveys{% endif %}" data-mode="{{ mode }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" id="payload-json" name="payload_json" value="">
