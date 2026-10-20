@@ -14,7 +14,7 @@ from app.survey_templates import get_survey_template, list_survey_templates
 def test_catalog_metadata_is_unique_complete_and_safe_by_default():
     templates = list_survey_templates()
     ids = [template["id"] for template in templates]
-    assert len(templates) == 8
+    assert len(templates) == 9
     assert len(ids) == len(set(ids))
     for item in templates:
         assert item["name"].strip()
@@ -77,7 +77,7 @@ def test_business_can_choose_a_template_and_save_it_as_a_private_draft(tmp_path,
     with TestClient(app) as client:
         catalogue = client.get("/api/survey-templates")
         assert catalogue.status_code == 200
-        assert len(catalogue.json()["templates"]) == 8
+        assert len(catalogue.json()["templates"]) == 9
         detail = client.get("/api/survey-templates/local-delivery")
         assert detail.status_code == 200
         assert detail.json()["payload"]["title"] == "عادات التوصيل وتجربة الطلب"
