@@ -376,7 +376,7 @@ _TEMPLATES: list[dict[str, Any]] = [
             "reward_per_response_dzd": 0,
             "response_limit": 50,
             "quotas": {},
-            "hypotheses": [_hypothesis("H1", "q5", ["standard"], threshold=0.35)],
+            "hypotheses": [_hypothesis("H1", "q7", [4, 5], threshold=0.35)],
             "questions": [
                 _single("q1", "كيف تحصل الآن على حل مشابه؟", [
                     ("free", "أستخدم حلاً مجانياً"),

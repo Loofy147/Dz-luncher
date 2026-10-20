@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -106,21 +107,52 @@ def _parse_hypotheses(items: Any) -> tuple[Hypothesis, ...]:
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             raise ServiceError(f"الفرضية {index + 1} يجب أن تكون كائناً.", 422, "invalid_hypothesis")
-        unknown = set(item) - {"id", "question_id", "positive_values", "threshold", "minimum_n", "evidence_type", "segment_question_id", "segment_option_id"}
+        allowed = {"id", "question_id", "positive_values", "threshold", "minimum_n", "evidence_type", "segment_question_id", "segment_option_id"}
+        unknown = set(item) - allowed
         if unknown:
             raise ServiceError(f"حقول غير معروفة في الفرضية: {', '.join(sorted(unknown))}", 422, "unknown_hypothesis_fields")
+
+        hypothesis_id = item.get("id")
+        question_id = item.get("question_id")
+        values = item.get("positive_values")
+        threshold = item.get("threshold")
+        minimum_n = item.get("minimum_n")
+        evidence_type = item.get("evidence_type", "declared")
+        segment_question_id = item.get("segment_question_id")
+        segment_option_id = item.get("segment_option_id")
+        if not isinstance(hypothesis_id, str) or not hypothesis_id.strip() or len(hypothesis_id) > 100:
+            raise ServiceError(f"معرّف الفرضية {index + 1} غير صالح.", 422, "invalid_hypothesis")
+        if not isinstance(question_id, str) or not question_id.strip():
+            raise ServiceError(f"يجب تحديد السؤال الذي تقيسه الفرضية {index + 1}.", 422, "invalid_hypothesis")
+        if not isinstance(values, list) or not values:
+            raise ServiceError(f"يجب تحديد قائمة قيم موجبة غير فارغة للفرضية {hypothesis_id}.", 422, "invalid_hypothesis_values")
+        if any(isinstance(value, bool) or not isinstance(value, (str, int, float)) for value in values):
+            raise ServiceError(f"القيم الموجبة للفرضية {hypothesis_id} يجب أن تكون نصوصاً أو أعداداً.", 422, "invalid_hypothesis_values")
+        if len(set(values)) != len(values):
+            raise ServiceError(f"تحتوي الفرضية {hypothesis_id} على قيم موجبة مكررة.", 422, "invalid_hypothesis_values")
+        if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+            raise ServiceError(f"حد الفرضية {hypothesis_id} يجب أن يكون رقماً بين 0 و1.", 422, "invalid_hypothesis")
         try:
-            hypothesis = Hypothesis(
-                id=item["id"], question_id=item["question_id"],
-                positive_values=tuple(item["positive_values"]), threshold=float(item["threshold"]),
-                minimum_n=int(item["minimum_n"]), evidence_type=item.get("evidence_type", "declared"),
-                segment_question_id=item.get("segment_question_id"), segment_option_id=item.get("segment_option_id"),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ServiceError(f"تعذر قراءة الفرضية {index + 1}.", 422, "invalid_hypothesis") from exc
-        if hypothesis.evidence_type != "declared":
+            threshold_value = float(threshold)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ServiceError(f"حد الفرضية {hypothesis_id} غير صالح.", 422, "invalid_hypothesis") from exc
+        if not math.isfinite(threshold_value) or not 0 <= threshold_value <= 1:
+            raise ServiceError(f"حد الفرضية {hypothesis_id} يجب أن يكون بين 0 و1.", 422, "invalid_hypothesis")
+        if isinstance(minimum_n, bool) or not isinstance(minimum_n, int) or minimum_n < 1:
+            raise ServiceError(f"الحد الأدنى للعينة في الفرضية {hypothesis_id} يجب أن يكون عدداً صحيحاً موجباً.", 422, "invalid_hypothesis")
+        if evidence_type != "declared":
             raise ServiceError("الفرضيات المعتمدة على الإجابات تبدأ كدليل مُصرّح به فقط.", 422, "unsupported_evidence_type")
-        hypotheses.append(hypothesis)
+        if segment_question_id is not None and (not isinstance(segment_question_id, str) or not segment_question_id.strip()):
+            raise ServiceError(f"سؤال التقسيم في الفرضية {hypothesis_id} غير صالح.", 422, "invalid_hypothesis")
+        if segment_option_id is not None and (not isinstance(segment_option_id, str) or not segment_option_id.strip()):
+            raise ServiceError(f"خيار التقسيم في الفرضية {hypothesis_id} غير صالح.", 422, "invalid_hypothesis")
+        if (segment_question_id is None) != (segment_option_id is None):
+            raise ServiceError(f"تحديد الشريحة في الفرضية {hypothesis_id} يتطلب السؤال والخيار معاً.", 422, "invalid_hypothesis")
+        hypotheses.append(Hypothesis(
+            id=hypothesis_id, question_id=question_id, positive_values=tuple(values),
+            threshold=threshold_value, minimum_n=minimum_n, evidence_type=evidence_type,
+            segment_question_id=segment_question_id, segment_option_id=segment_option_id,
+        ))
     return tuple(hypotheses)
 
 
@@ -129,6 +161,43 @@ def _validate_hypotheses(schema, hypotheses: Sequence[Hypothesis]) -> None:
         build_report([], schema, hypotheses)
     except ValueError as exc:
         raise ServiceError(f"عقد الفرضيات غير صالح: {exc}", 422, "invalid_hypotheses") from exc
+
+    question_by_id = {question.id: question for question in schema.questions}
+    for hypothesis in hypotheses:
+        question = question_by_id[hypothesis.question_id]
+        if question.kind == "single":
+            valid_options = {option.id for option in question.options}
+            if any(not isinstance(value, str) or value not in valid_options for value in hypothesis.positive_values):
+                raise ServiceError(
+                    f"تحتوي الفرضية {hypothesis.id} على خيار غير موجود في السؤال {question.id}.",
+                    422, "invalid_hypothesis_values",
+                )
+        elif question.kind in {"scale", "number"}:
+            for value in hypothesis.positive_values:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ServiceError(
+                        f"القيم الموجبة للفرضية {hypothesis.id} يجب أن تطابق النوع الرقمي للسؤال {question.id}.",
+                        422, "invalid_hypothesis_values",
+                    )
+                try:
+                    numeric_value = float(value)
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise ServiceError(f"قيمة غير صالحة في الفرضية {hypothesis.id}.", 422, "invalid_hypothesis_values") from exc
+                if not math.isfinite(numeric_value) or numeric_value < question.lo or numeric_value > question.hi:
+                    raise ServiceError(
+                        f"قيمة الفرضية {hypothesis.id} خارج نطاق السؤال {question.id}.",
+                        422, "invalid_hypothesis_values",
+                    )
+                if question.kind == "scale" and not numeric_value.is_integer():
+                    raise ServiceError(
+                        f"قيمة الفرضية {hypothesis.id} غير قابلة للاختيار في مقياس السؤال {question.id}.",
+                        422, "invalid_hypothesis_values",
+                    )
+        else:
+            raise ServiceError(
+                f"لا تدعم فرضية القرار السؤال النصي المفتوح {question.id} مباشرة؛ صنّف الإجابات بمراجعة مستقلة أولاً.",
+                422, "unsupported_hypothesis_question_type",
+            )
 
 
 def _validate_campaign_input(payload: Mapping[str, Any], campaign_id: str, *, draft_version: str) -> tuple[str, str, str, int, int, dict, list]:

@@ -5,6 +5,9 @@
 - Arabic-first RTL server-rendered web app with FastAPI/Jinja, registration/login, database-backed sessions and CSRF protection.
 - SQLAlchemy domain model: users, sessions, campaigns, immutable published versions, responses, reward obligations, double-entry-style ledger deltas, and audit events.
 - Survey contract supporting single-choice, scale, numeric, and optional text questions; conditional display, screening, quotas, response-quality signals, duplicate submissions, and idempotency.
+- Nine complete Arabic-first study templates are available in the business builder and template API; choosing a template prefills an unsaved form, and an explicit save creates a private draft without publishing it.
+- Hypothesis validation rejects nonexistent choice values, incompatible numeric types, out-of-range values, unsupported free-text mappings, and malformed thresholds/sample minimums instead of silently reporting zero positive responses.
+- Fieldwork operations playbook and study-template catalog cover decision framing, recruitment/sample flow, participant comprehension, reviewer rubric, reward reconciliation, and release gates.
 - Declared-evidence report with sample flow, segment minimums, interval labels, explicit sampling caveats, and no false upgrade to observed behavior or transactional proof.
 - Reward funding requirement before publishing a rewarded campaign; accepted-response obligations, idempotent reservation and manually reconciled payment state.
 - Operator CLI for pending reward obligations, externally verified funding records, and externally completed payout records.

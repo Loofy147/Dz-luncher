@@ -51,6 +51,22 @@ def test_all_builtin_instruments_pass_the_real_campaign_validation_contract():
         assert limit == item["target_completes"]
         assert len(schema["questions"]) >= 6
         assert hypotheses
+        question_by_id = {question["id"]: question for question in schema["questions"]}
+        for hypothesis in hypotheses:
+            question = question_by_id[hypothesis["question_id"]]
+            assert hypothesis["minimum_n"] == item["minimum_interpretable_n"]
+            if question["kind"] == "single":
+                option_ids = {option["id"] for option in question["options"]}
+                assert set(hypothesis["positive_values"]) <= option_ids
+            else:
+                assert question["kind"] in {"scale", "number"}
+                assert all(
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and question["lo"] <= value <= question["hi"]
+                    and (question["kind"] != "scale" or float(value).is_integer())
+                    for value in hypothesis["positive_values"]
+                )
 
 
 def test_template_payloads_are_returned_as_independent_copies():

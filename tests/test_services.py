@@ -188,6 +188,47 @@ def test_campaign_limit_cannot_be_overfilled(system):
     assert raised.value.code == "campaign_full"
 
 
+@pytest.mark.parametrize(
+    ("question_id", "positive_values", "expected_code"),
+    [
+        ("q6", ["option_that_does_not_exist"], "invalid_hypothesis_values"),
+        ("q4", ["4"], "invalid_hypothesis_values"),
+        ("q7", ["free-text-phrase"], "unsupported_hypothesis_question_type"),
+    ],
+)
+def test_hypothesis_values_must_match_a_supported_question_contract(
+    system, question_id, positive_values, expected_code
+):
+    factory, business, _ = system
+    bad_hypothesis = {
+        "id": "H_INVALID",
+        "question_id": question_id,
+        "positive_values": positive_values,
+        "threshold": 0.4,
+        "minimum_n": 1,
+        "evidence_type": "declared",
+    }
+    with pytest.raises(ServiceError) as raised:
+        create_draft(factory, business.id, payload(hypotheses=[bad_hypothesis]))
+    assert raised.value.code == expected_code
+
+
+def test_hypothesis_parser_rejects_boolean_thresholds_and_invalid_sample_minimums(system):
+    factory, business, _ = system
+    for field, value in (("threshold", True), ("minimum_n", True), ("threshold", "0.4")):
+        bad_hypothesis = {
+            "id": "H_BAD_TYPE",
+            "question_id": "q6",
+            "positive_values": ["option_1"],
+            "threshold": 0.4,
+            "minimum_n": 1,
+            "evidence_type": "declared",
+        }
+        bad_hypothesis[field] = value
+        with pytest.raises(ServiceError):
+            create_draft(factory, business.id, payload(hypotheses=[bad_hypothesis]))
+
+
 def test_report_labels_declared_hypotheses_as_declared_only(system):
     factory, business, people = system
     hs = [{"id": "H1", "question_id": "q6", "positive_values": ["option_1"], "threshold": 0.4, "minimum_n": 1, "evidence_type": "declared"}]

@@ -55,7 +55,7 @@
       <summary><strong>03 · الحصص والفرضيات</strong><span>إعدادات متقدمة بصيغة JSON</span></summary>
       <div class="field-grid advanced-grid">
         <div class="field-full"><label for="quotas-json">حصص المشاركين</label><textarea id="quotas-json" rows="3" spellcheck="false">{{ initial_quotas or '{}' }}</textarea><small class="field-help">مثال: {"q1":{"option_1":50,"option_2":50}}. تُحتسب الحصص على الإجابات المقبولة فقط، ويجب أن يكون سؤال الحصة مطلوباً وظاهراً دائماً.</small></div>
-        <div class="field-full"><label for="hypotheses-json">فرضيات القرار (اختياري)</label><textarea id="hypotheses-json" rows="5" spellcheck="false">{{ initial_hypotheses or '[]' }}</textarea><small class="field-help">كل عنصر يحتاج id وquestion_id وpositive_values وthreshold بين 0 و1 وminimum_n. مثال: [{"id":"H1","question_id":"q2","positive_values":["option_1"],"threshold":0.4,"minimum_n":30,"evidence_type":"declared"}]. النتائج المعلنة لا تثبت الطلب أو الشراء.</small></div>
+        <div class="field-full"><label for="hypotheses-json">فرضيات القرار (اختياري)</label><textarea id="hypotheses-json" rows="5" spellcheck="false">{{ initial_hypotheses or '[]' }}</textarea><small class="field-help">كل عنصر يحتاج id وquestion_id وpositive_values وthreshold بين 0 و1 وminimum_n. اربط الفرضية بسؤال اختيار أو مقياس أو عدد؛ يجب أن تطابق القيم الموجبة خيارات السؤال أو نطاقه، أما النص الحر فيحتاج إلى ترميز مستقل. مثال: [{"id":"H1","question_id":"q2","positive_values":["option_1"],"threshold":0.4,"minimum_n":30,"evidence_type":"declared"}]. النتائج المعلنة لا تثبت الطلب أو الشراء.</small></div>
       </div>
     </details>
   </section>
