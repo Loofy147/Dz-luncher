@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading"><div><p class="eyebrow">مصمم الاستبيانات</p><h1>{% if mode == 'edit' %}تعديل المسودة{% else %}إنشاء استبيان جديد{% endif %}</h1><p>ابدأ بالقرار التجاري المطلوب. يمكنك إضافة أسئلة التأهيل والتفرّع وتحديد الحصص بصيغة موثّقة.</p></div><a class="text-link" href="/business">← العودة للمشاريع</a></section>
+<form id="survey-builder" class="builder-form" method="post" action="{% if mode == 'edit' %}/business/surveys/{{ slug }}/edit{% else %}/business/surveys{% endif %}" data-mode="{{ mode }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" id="payload-json" name="payload_json" value="">
+  <p id="builder-message" class="builder-message" role="alert" hidden></p>
+  <section class="form-panel">
+    <div class="panel-heading"><span class="section-number">01</span><div><h2>أساس الدراسة</h2><p>وضوح القرار يحسّن تصميم السؤال وتفسير النتيجة.</p></div></div>
+    <div class="field-grid">
+      <div class="field-full"><label for="survey-title">عنوان الاستبيان</label><input id="survey-title" maxlength="180" value="{{ campaign.title if campaign else '' }}" placeholder="مثال: تقييم خدمة التوصيل في ولايتك" required></div>
+      <div class="field-full"><label for="survey-objective">ما القرار الذي تريد التحقق منه؟</label><textarea id="survey-objective" maxlength="1000" rows="3" placeholder="مثال: تحديد أكثر عامل يؤثر في تكرار الطلب قبل إطلاق الخدمة." required>{{ campaign.objective if campaign else '' }}</textarea><small class="field-help">تجنّب كتابة النتيجة التي تتمنى الوصول إليها كأنها حقيقة.</small></div>
+      <div class="field-full"><label for="survey-description">وصف للمشاركين (اختياري)</label><textarea id="survey-description" maxlength="4000" rows="2" placeholder="من تستهدف الدراسة؟ وكيف ستستخدم النتائج؟">{{ campaign.description if campaign else '' }}</textarea></div>
+      <div><label for="reward-amount">المكافأة لكل مشاركة (دج)</label><input id="reward-amount" type="number" min="0" max="100000" step="1" value="{{ campaign.reward_per_response_dzd if campaign else 0 }}" required><small class="field-help">لا تُعرض المكافأة كمتاحة إلا بعد تسجيل التمويل المؤكد.</small></div>
+      <div><label for="response-limit">الحد الأقصى للمشاركات</label><input id="response-limit" type="number" min="1" max="5000" step="1" value="{{ campaign.response_limit if campaign else 100 }}" required></div>
+    </div>
+  </section>
+  <section class="form-panel">
+    <div class="panel-heading"><span class="section-number">02</span><div><h2>الأسئلة</h2><p>تُحفظ الخيارات بمعرّفات ثابتة لا بتسمياتها المعروضة؛ هذا يحمي الفروع والنتائج عند تنقيح النصوص.</p></div></div>
+    <div id="questions-list" class="question-list"></div>
+    <button type="button" id="add-question" class="button button-secondary">＋ إضافة سؤال</button>
+    <p class="field-help">الأنواع المتاحة: اختيار واحد، مقياس رقمي، عدد، ونص حر. أسئلة الفروع يجب أن تشير إلى سؤال سابق.</p>
+  </section>
+  <section class="form-panel">
+    <details class="advanced-details" open>
+      <summary><strong>03 · الحصص والفرضيات</strong><span>إعدادات متقدمة بصيغة JSON</span></summary>
+      <div class="field-grid advanced-grid">
+        <div class="field-full"><label for="quotas-json">حصص المشاركين</label><textarea id="quotas-json" rows="3" spellcheck="false">{{ initial_quotas or '{}' }}</textarea><small class="field-help">مثال: {"q1":{"option_1":50,"option_2":50}}. تُحتسب الحصص على الإجابات المقبولة فقط، ويجب أن يكون سؤال الحصة مطلوباً وظاهراً دائماً.</small></div>
+        <div class="field-full"><label for="hypotheses-json">فرضيات القرار (اختياري)</label><textarea id="hypotheses-json" rows="5" spellcheck="false">{{ initial_hypotheses or '[]' }}</textarea><small class="field-help">كل عنصر يحتاج id وquestion_id وpositive_values وthreshold بين 0 و1 وminimum_n. مثال: [{"id":"H1","question_id":"q2","positive_values":["option_1"],"threshold":0.4,"minimum_n":30,"evidence_type":"declared"}]. النتائج المعلنة لا تثبت الطلب أو الشراء.</small></div>
+      </div>
+    </details>
+  </section>
+  <div class="form-submit-row"><span>المسودة خاصة بحسابك ولا تظهر في قائمة الدراسات قبل النشر.</span><button class="button button-primary" type="submit">{% if mode == 'edit' %}حفظ المسودة{% else %}حفظ ومراجعة المسودة{% endif %}</button></div>
+</form>
+<textarea id="initial-payload" class="visually-hidden" aria-hidden="true">{{ initial_payload if initial_payload else 'null' }}</textarea>
+<template id="question-template">
+  <article class="question-builder-card">
+    <div class="question-card-head"><span class="question-index">سؤال</span><div class="question-card-actions"><span class="question-id-badge"></span><button type="button" class="remove-question" aria-label="حذف السؤال">حذف</button></div></div>
+    <div class="field-grid">
+      <div class="field-full"><label>نص السؤال</label><input class="q-text" maxlength="4000" required placeholder="اكتب السؤال بلغة واضحة ومحايدة"></div>
+      <div><label>نوع الإجابة</label><select class="q-kind"><option value="single">اختيار واحد</option><option value="scale">مقياس رقمي</option><option value="number">عدد</option><option value="text">نص حر</option></select></div>
+      <div class="q-options-wrap"><label>الخيارات (سطر لكل خيار)</label><textarea class="q-options" rows="4" placeholder="option_1 | نعم&#10;option_2 | لا"></textarea><small class="field-help">اكتب المعرّف ثم | ثم النص، أو اكتب النص فقط ليُنشأ معرّف تلقائي.</small></div>
+      <div class="q-bounds-wrap"><label>أدنى قيمة</label><input class="q-lo" type="number" value="1"></div>
+      <div class="q-bounds-wrap"><label>أعلى قيمة</label><input class="q-hi" type="number" value="5"></div>
+      <div><label>مجموعة المقياس (اختياري)</label><input class="q-grid" maxlength="60" placeholder="experience"></div>
+      <div class="field-full branch-config"><label>اعرض السؤال بعد إجابة معيّنة (اختياري)</label><div class="branch-row"><select class="q-branch-controller"><option value="">عرض دائم</option></select><input class="q-branch-values" placeholder="option_1, option_2" aria-label="معرّفات الخيارات التي تظهر عندها الفرع"></div></div>
+      <div class="field-full q-single-rules"><label>خيارات الإقصاء (اختياري)</label><input class="q-disqualify" placeholder="option_2, option_3"><small class="field-help">إذا اختير أحد هذه الخيارات، تنتهي المشاركة كتأهيل غير مطابق، لا كتقييم لجودة الإجابة.</small></div>
+      <div class="field-full q-single-rules"><label>خيار فحص الانتباه المتوقع (اختياري)</label><input class="q-attention" placeholder="option_2"><small class="field-help">الإخفاق إشارة واحدة للمراجعة، وليس سبباً مستقلاً لرفض المكافأة.</small></div>
+      <div class="field-full required-row"><label><input class="q-required" type="checkbox" checked> إجابة مطلوبة</label></div>
+    </div>
+  </article>
+</template>
+{% endblock %}

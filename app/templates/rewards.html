@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">سجل المشاركات</p><h1>مكافآتي</h1><p>هذه قائمة بالاستحقاقات التي جرى تسجيلها. المبالغ المعلّقة ليست دليلاً على تحويل مالي.</p></div><a class="button button-secondary" href="/">استكشاف الدراسات</a></section>
+{% if rewards %}
+<div class="reward-list">{% for reward in rewards %}<article class="reward-card"><div class="reward-icon">دج</div><div class="reward-details"><h3>{{ reward.survey_title }}</h3><p>استحقاق {{ reward.id[:8] }}</p><small>{% if reward.status == 'pending' %}قيد التسوية{% elif reward.status == 'paid' %}تم تسجيل الدفع{% else %}ملغى{% endif %}{% if reward.reference %} · المرجع: {{ reward.reference }}{% endif %}</small></div><div class="reward-amount"><strong>{{ "{:,}".format(reward.amount_dzd) }}</strong><span>دينار جزائري</span></div></article>{% endfor %}</div>
+{% else %}<div class="empty-state"><div class="empty-icon">دج</div><h3>لا توجد استحقاقات مسجّلة بعد</h3><p>عند إكمال دراسة مدعومة بمكافأة وتُقبل إجابتك، سيظهر الاستحقاق هنا.</p><a class="button button-primary" href="/">استكشاف الدراسات</a></div>{% endif %}
+{% endblock %}

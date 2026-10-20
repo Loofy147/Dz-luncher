@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">مساحة صاحب المشروع</p><h1>حوّل السؤال إلى خطة تحقق</h1><p>ابدأ بقرار تريد حسمه، لا بمجموعة أسئلة عشوائية. المسودات لا تظهر للمشاركين قبل النشر.</p></div><a class="button button-primary" href="/business/surveys/new">＋ إنشاء استبيان</a></section>
+<div class="metrics-row">
+  <div class="metric-card"><span>إجمالي الدراسات</span><strong>{{ campaigns|length }}</strong></div>
+  <div class="metric-card"><span>منشورة</span><strong>{{ campaigns|selectattr('status','equalto','published')|list|length }}</strong></div>
+  <div class="metric-card"><span>المكافآت الملتزم بها</span><strong>{% set total_obligated = campaigns|sum(attribute='obligated_dzd') %}{{ "{:,}".format(total_obligated) }} <small>دج</small></strong></div>
+</div>
+<section class="section-heading"><div><h2>دراساتك</h2><p>كل نشر مرتبط بنسخة ثابتة من الأسئلة. تعديل الأسئلة المنشورة غير متاح في هذه النسخة الأولية.</p></div></section>
+{% if campaigns %}
+<div class="table-wrap"><table class="data-table"><thead><tr><th>الدراسة</th><th>الحالة</th><th>المشاركات المقبولة</th><th>المكافأة / مشاركة</th><th>الرصيد المتاح</th><th></th></tr></thead><tbody>
+{% for campaign in campaigns %}<tr><td><strong>{{ campaign.title }}</strong><small>{{ campaign.objective }}</small></td><td><span class="status-pill {% if campaign.status == 'published' %}status-open{% else %}status-draft{% endif %}">{{ 'منشور' if campaign.status == 'published' else 'مسودة' }}</span></td><td>{{ campaign.accepted_n }} / {{ campaign.response_limit }}</td><td>{{ "{:,}".format(campaign.reward_per_response_dzd) }} دج</td><td>{{ "{:,}".format(campaign.available_dzd) }} دج</td><td><a class="text-link" href="/business/surveys/{{ campaign.slug }}">إدارة ←</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="empty-state"><div class="empty-icon">＋</div><h3>لا توجد دراسات بعد</h3><p>أنشئ مسودة، راجع أسئلتها وفرضياتها، ثم انشرها بعد تأكيد تمويل المكافآت المعلنة.</p><a class="button button-primary" href="/business/surveys/new">إنشاء أول استبيان</a></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">تقرير مُقيّد بصلاحية صاحب الدراسة</p><h1>{{ report.survey.title }}</h1><p>الإصدار: <span dir="ltr">{{ report.survey.version_id }}</span> · المقبول: {{ report.accepted_n }}</p></div><a class="text-link" href="/business/surveys/{{ report.survey.slug }}">← إدارة الدراسة</a></section>
+<div class="notice notice-warning"><strong>حدود التفسير:</strong> الإجابات المعلنة تقيس ما قاله المشاركون، لا ما دفعوه فعلياً. العينة التطوعية ليست بالضرورة ممثلة للسوق الجزائري، وفواصل الثقة لا تصلح انحياز الاختيار.</div>
+<section class="section-heading"><div><h2>تدفّق العينة</h2><p>تظهر كل حالة منفصلة حتى لا يُخلط الإقصاء التأهيلي مع ضعف جودة الإجابة.</p></div></section>
+<div class="status-flow-grid">
+{% for key, label in [('accepted','مقبول'),('accepted_flagged','مقبول مع إشارة'),('hold','مراجعة بشرية'),('screened_out','غير مطابق للتأهيل'),('invalid','بيانات غير صالحة'),('quota_full','حصة مكتملة'),('excluded_duplicate','تكرار مستبعد')] %}
+<div class="status-metric"><span>{{ label }}</span><strong>{{ report.sample_flow.get(key, 0) }}</strong></div>
+{% endfor %}
+</div>
+<section class="section-heading"><div><h2>النتائج حسب السؤال</h2><p>الرسوم الوصفية تعتمد الإجابات المقبولة، ولا تعرض النص الحر في هذه الصفحة.</p></div></section>
+{% for q in report.distributions %}
+  <section class="distribution-panel"><h3>{{ report.question_labels.get(q, q) }}</h3><div class="distribution-list">
+    {% for item in report.distributions[q] %}<div class="distribution-row"><div class="distribution-label"><span>{{ item.label }}</span><strong>{{ item.count }} · {{ (item.share*100)|round(1) }}%</strong></div><progress class="distribution-progress" max="100" value="{{ (item.share*100)|round(2) }}">{{ (item.share*100)|round(1) }}%</progress></div>{% endfor %}
+    {% if not report.distributions[q] %}<p class="muted-text">لا توجد إجابات مقبولة لهذا السؤال بعد.</p>{% endif %}
+  </div></section>
+{% endfor %}
+<section class="section-heading"><div><h2>الفرضيات المسجّلة</h2><p>تُقارن النتيجة بعتبة محددة مسبقاً وحد أدنى للعينة.</p></div></section>
+{% if report.hypotheses %}
+<div class="table-wrap"><table class="data-table"><thead><tr><th>الفرضية</th><th>النتيجة</th><th>العينة</th><th>النسبة</th><th>فاصل Wilson 95%</th><th>نطاق الدليل</th></tr></thead><tbody>
+{% for h in report.hypotheses %}<tr><td><strong>{{ h.id }}</strong><small>السؤال {{ h.question_id }}</small></td><td><span class="status-pill {% if h.label == 'supported' %}status-open{% elif h.label == 'contradicted' %}status-danger{% else %}status-draft{% endif %}">{{ {'supported':'بلغت العتبة','contradicted':'لم تبلغ العتبة','weak':'غير حاسمة','inconclusive':'عينة غير كافية'}.get(h.label,h.label) }}</span></td><td>{{ h.n }} (الحد {{ h.minimum_n }})</td><td>{{ '%.1f'|format((h.proportion or 0)*100) }}%</td><td>{{ '%.1f'|format(h.interval[0]*100) }}% – {{ '%.1f'|format(h.interval[1]*100) }}%</td><td>{{ h.evidence_scope }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="empty-state compact-empty"><h3>لم تُعرّف فرضيات مسبقاً</h3><p>يعرض التقرير التوزيعات وصفياً فقط. في هذه النسخة، إعداد الفرضيات قبل النشر متاح عبر محرر JSON المتقدم.</p></div>{% endif %}
+<section class="form-panel limitations-panel"><h2>تحذيرات التقرير</h2><ul>{% for item in report.limitations %}<li>{{ item }}</li>{% endfor %}</ul><h3>دفتر المكافآت</h3><div class="metrics-row"><div class="metric-card"><span>الرصيد المتاح</span><strong>{{ "{:,}".format(report.reward_ledger.available_dzd) }} <small>دج</small></strong></div><div class="metric-card"><span>استحقاقات معلّقة</span><strong>{{ "{:,}".format(report.reward_ledger.obligated_dzd) }} <small>دج</small></strong></div><div class="metric-card"><span>المدفوع بعد المطابقة</span><strong>{{ "{:,}".format(report.reward_ledger.paid_dzd) }} <small>دج</small></strong></div></div><p class="field-help">سجل «مدفوع» يعني أن المشغّل سجّل مرجع دفع حقيقي. لا يتصل هذا الإصدار بمزوّد دفع أو مصرف.</p></section>
+{% endblock %}

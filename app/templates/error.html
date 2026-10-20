@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="error-state"><div class="error-code">{{ status_code or 400 }}</div><p class="eyebrow">لم تكتمل العملية</p><h1>{{ title or 'حدثت مشكلة' }}</h1><p>{{ message or 'راجع البيانات وحاول مرة أخرى.' }}</p><div class="hero-actions"><a class="button button-primary" href="/">العودة إلى الرئيسية</a><a class="button button-secondary" href="/business">الرجوع إلى مساحة العمل</a></div></section>
+{% endblock %}
