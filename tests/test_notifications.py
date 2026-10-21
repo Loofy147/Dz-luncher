@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from app.db import initialize_schema, make_engine, make_session_factory
 from app.main import create_app
