@@ -160,15 +160,30 @@ def _client_key(request: Request) -> str:
         return str(peer)[:128]
 
 
-def enforce_auth_rate_limit(request: Request, action: str) -> None:
-    policy = AUTH_LIMITS.get(action)
+RATE_LIMIT_POLICIES: dict[str, tuple[int, int]] = {
+    **{f"auth:{action}": policy for action, policy in AUTH_LIMITS.items()},
+    # Submission endpoints need both network-level and account/campaign-level controls.
+    "request:survey_response_ip": (60, 60 * 60),
+    "request:survey_response_user": (10, 60 * 60),
+}
+
+
+def enforce_rate_limit(
+    request: Request,
+    scope: str,
+    *,
+    key_material: str | None = None,
+) -> None:
+    """Apply a named persisted policy; callers may provide a scoped account key."""
+    policy = RATE_LIMIT_POLICIES.get(scope)
     if policy is None:
-        raise ValueError("unsupported_auth_rate_limit_action")
+        raise ValueError("unsupported_rate_limit_scope")
     limit, window_seconds = policy
+    material = _client_key(request) if key_material is None else key_material
     decision = consume_rate_limit(
         request.app.state.session_factory,
-        scope=f"auth:{action}",
-        key_material=_client_key(request),
+        scope=scope,
+        key_material=material,
         limit=limit,
         window_seconds=window_seconds,
     )
@@ -179,3 +194,9 @@ def enforce_auth_rate_limit(request: Request, action: str) -> None:
             "rate_limit_exceeded",
             headers={"Retry-After": str(decision.retry_after)},
         )
+
+
+def enforce_auth_rate_limit(request: Request, action: str) -> None:
+    if action not in AUTH_LIMITS:
+        raise ValueError("unsupported_auth_rate_limit_action")
+    enforce_rate_limit(request, f"auth:{action}")
