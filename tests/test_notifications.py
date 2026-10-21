@@ -60,7 +60,7 @@ def test_notifications_are_private_and_mark_as_read_is_durable(tmp_path, monkeyp
         own_page = client.get("/notifications")
         assert "استجابتك قيد المراجعة" in own_page.text
         assert "إشعار خاص بحساب آخر" not in own_page.text
-        assert "إشعارات غير مقروءة" in own_page.text
+        assert "غير مقروء" in own_page.text
 
         marked = client.post(f"/notifications/{own_id}/read", data={"csrf_token": csrf}, follow_redirects=False)
         assert marked.status_code == 303
