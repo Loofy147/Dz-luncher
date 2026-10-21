@@ -25,7 +25,7 @@ from app.response_appeals import (
     create_response_appeal, list_participant_responses, list_response_appeal_queue, resolve_response_appeal,
 )
 from app.notifications import list_user_notifications, mark_notification_read
-from app.rate_limits import enforce_auth_rate_limit
+from app.rate_limits import enforce_auth_rate_limit, enforce_rate_limit
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -683,7 +683,15 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/api/surveys/{slug}/responses")
     async def response_api(request: Request, slug: str):
+        # Count unauthenticated traffic before identity lookup, then add an
+        # account+campaign limit to prevent rotation across network addresses.
+        enforce_rate_limit(request, "request:survey_response_ip")
         identity = _require_identity(request)
+        enforce_rate_limit(
+            request,
+            "request:survey_response_user",
+            key_material=f"{identity.user_id}:{slug}",
+        )
         _csrf(request, identity)
         try:
             payload = await request.json()
