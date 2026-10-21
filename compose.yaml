@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dz_luncher
+      POSTGRES_USER: dz_luncher
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dz_luncher -d dz_luncher"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      PORT: 8000
+      DATABASE_URL: postgresql+psycopg://dz_luncher:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/dz_luncher
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in your environment}
+      PSEUDONYM_SECRET: ${PSEUDONYM_SECRET:?Set PSEUDONYM_SECRET in your environment}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+volumes:
+  postgres_data:

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">بحوث سوق عربية · من الجزائر</p>
+    <h1>اختبر الفكرة قبل أن تستثمر فيها.</h1>
+    <p class="hero-lede">حوّل افتراضات مشروعك إلى أسئلة قابلة للاختبار، واجمع آراء الفئات المناسبة، واقرأ النتائج مع حدودها بوضوح. ويمكن للمشاركين إكمال الدراسات المؤهلة والحصول على مكافآت معلنة.</p>
+    <div class="hero-actions">
+      {% if user and user.role in ['business', 'admin'] %}
+        <a class="button button-primary" href="/business/surveys/new">أنشئ استبياناً</a>
+      {% else %}
+        <a class="button button-primary" href="/register">ابدأ مشروعك</a>
+      {% endif %}
+      <a class="button button-secondary" href="#available-surveys">استكشف الدراسات</a>
+    </div>
+    <div class="trust-points">
+      <span><i>✓</i> واجهة عربية RTL</span>
+      <span><i>✓</i> حصة ومكافأة واضحتان</span>
+      <span><i>✓</i> النتائج مع حدود العينة</span>
+    </div>
+  </div>
+  <div class="hero-panel">
+    <div class="panel-topline"><span class="status-dot"></span><span>من الفكرة إلى دليل عملي</span></div>
+    <div class="flow-step"><span class="step-index">01</span><div><strong>حدّد القرار</strong><small>ما الذي تحتاج إلى معرفته قبل الإطلاق؟</small></div></div>
+    <div class="flow-line"></div>
+    <div class="flow-step"><span class="step-index">02</span><div><strong>اسأل الفئة المناسبة</strong><small>تأهيل وتفرّع وحصص قابلة للتحقق</small></div></div>
+    <div class="flow-line"></div>
+    <div class="flow-step"><span class="step-index">03</span><div><strong>راجع الدليل</strong><small>نتائج وصفية، فرضيات، وقيود معلنة</small></div></div>
+    <div class="panel-note"><span class="note-icon">!</span><span>الآراء المعلنة ليست وحدها إثباتاً للطلب أو الشراء.</span></div>
+  </div>
+</section>
+<section class="section-heading" id="available-surveys">
+  <div><p class="eyebrow">للمشاركين</p><h2>الدراسات المتاحة</h2><p>تصف كل دراسة هدفها وعدد المشاركات المتبقية وأي مكافأة مرتبطة بها.</p></div>
+  <span class="count-pill">{{ campaigns|length }} دراسة</span>
+</section>
+{% if campaigns %}
+  <div class="survey-grid">
+    {% for campaign in campaigns %}
+      <article class="survey-card">
+        <div class="card-top"><span class="status-pill status-open">مفتوح للمشاركة</span><span class="card-reward">{% if campaign.reward_per_response_dzd > 0 %}{{ "{:,}".format(campaign.reward_per_response_dzd) }} دج{% else %}دون مكافأة{% endif %}</span></div>
+        <h3>{{ campaign.title }}</h3>
+        <p>{{ campaign.objective }}</p>
+        {% if campaign.description %}<p class="muted-text">{{ campaign.description }}</p>{% endif %}
+        <div class="card-meta"><span>متبقٍ {{ campaign.remaining }} مشاركة</span><span>الجزائر · استبيان</span></div>
+        <a class="button button-secondary button-block" href="/s/{{ campaign.slug }}">عرض الدراسة</a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon">⌕</div>
+    <h3>لا توجد دراسة منشورة حالياً</h3>
+    <p>لم نضع بيانات استطلاعية مصطنعة على أنها دراسات حقيقية. أنشئ أول دراسة من مساحة المشاريع، أو عد لاحقاً لاستكشاف الدراسات المنشورة.</p>
+    {% if user and user.role in ['business', 'admin'] %}<a class="button button-primary" href="/business/surveys/new">إنشاء أول استبيان</a>{% else %}<a class="button button-primary" href="/register">إنشاء حساب مشروع</a>{% endif %}
+  </div>
+{% endif %}
+<section class="two-column-info">
+  <article class="info-panel"><span class="info-number">لأصحاب المشاريع</span><h3>تحقق من الافتراضات قبل التوسع</h3><p>صمّم أسئلة تأهيل وتفرّع، حدّد سقف المشاركات، ثم راجع مؤشرات العينة وجودة الإجابات قبل اتخاذ القرار.</p><a href="/register">إنشاء حساب صاحب مشروع ←</a></article>
+  <article class="info-panel"><span class="info-number">للمشاركين</span><h3>شارك بوضوح واحتفظ بسجل مكافآتك</h3><p>اقرأ هدف الدراسة وشروطها قبل الإجابة. تُراجع الإجابات التي تحتاج إلى تدقيق، ولا تعني إشارة جودة واحدة اتهاماً أو رفضاً تلقائياً.</p><a href="/rewards">عرض المكافآت بعد تسجيل الدخول ←</a></article>
+</section>
+{% endblock %}

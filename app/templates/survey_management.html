@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">إدارة الدراسة</p><h1>{{ campaign.title }}</h1><p>{{ campaign.objective }}</p></div><a class="text-link" href="/business">← مساحة المشاريع</a></section>
+<div class="status-banner {% if campaign.status == 'published' %}banner-live{% else %}banner-draft{% endif %}"><div><span class="status-pill {% if campaign.status == 'published' %}status-open{% else %}status-draft{% endif %}">{{ 'منشور' if campaign.status == 'published' else 'مسودة غير منشورة' }}</span><h2>{% if campaign.status == 'published' %}الدراسة متاحة للمشاركين{% else %}راجع المسودة قبل النشر{% endif %}</h2><p>{% if campaign.status == 'published' %}الإصدار المنشور ثابت. تُدار الإجابات والمكافآت عبر سجل مستقل.{% else %}النشر يتطلب صلاحية صاحب المشروع، وصحة بنية الأسئلة، وتمويلاً يغطي كل المكافآت الموعودة ضمن سقف المشاركات.{% endif %}</p></div>{% if campaign.status == 'draft' %}<a class="button button-secondary" href="/business/surveys/{{ campaign.slug }}/edit">تعديل المسودة</a>{% endif %}</div>
+<div class="metrics-row four-metrics">
+  <div class="metric-card"><span>المشاركات المقبولة</span><strong>{{ accepted_n }} <small>/ {{ campaign.response_limit }}</small></strong></div>
+  <div class="metric-card"><span>مكافأة المشاركة</span><strong>{{ "{:,}".format(campaign.reward_per_response_dzd) }} <small>دج</small></strong></div>
+  <div class="metric-card"><span>الرصيد المتاح</span><strong>{{ "{:,}".format(ledger.available_dzd) }} <small>دج</small></strong></div>
+  <div class="metric-card"><span>استحقاقات معلّقة</span><strong>{{ "{:,}".format(ledger.obligated_dzd) }} <small>دج</small></strong></div>
+</div>
+{% if campaign.status == 'draft' %}
+  <section class="form-panel publish-panel"><h2>بوابة النشر</h2><p>الحد الأدنى للتمويل المطلوب حالياً: <strong>{{ "{:,}".format(campaign.reward_per_response_dzd * campaign.response_limit) }} دج</strong>. تُسجّل عمليات التمويل من أداة تشغيل داخلية بعد التحقق الفعلي من استلام الأموال؛ لا توجد بوابة دفع مدمجة في هذا الإصدار.</p><form method="post" action="/business/surveys/{{ campaign.slug }}/publish"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-primary" type="submit">تحقق وانشر</button></form></section>
+{% else %}
+  <section class="form-panel share-panel"><div><p class="eyebrow">رابط الدراسة</p><h2>شارك الرابط مع الفئة المستهدفة</h2><p class="share-url" dir="ltr">{{ public_url }}</p></div><div class="share-actions"><button class="button button-secondary" type="button" data-copy-text="{{ public_url }}">نسخ الرابط</button><a class="button button-primary" href="/business/surveys/{{ campaign.slug }}/report">عرض التقرير</a></div></section>
+{% endif %}
+<div class="notice notice-neutral"><strong>مهم:</strong> نتائج العينة التطوعية تصف المشاركين الذين استجابوا، ولا تمثّل تلقائياً سكان الجزائر. نطاق المكافآت في الواجهة ليس دليلاً على التحويل المالي؛ حالة «مدفوع» لا تُسجّل إلا بعد مطابقة دفعة حقيقية بمرجع إثبات.</div>
+{% endblock %}

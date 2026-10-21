@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="auth-layout">
+  <div class="auth-intro">
+    <p class="eyebrow">حماية الحساب</p>
+    <h1>{% if mode == 'verify' %}تأكيد البريد الإلكتروني{% else %}إعادة تعيين كلمة المرور{% endif %}</h1>
+    <p>{% if mode == 'verify' %}تأكيد البريد يساعد على حماية الحساب واستعادة الوصول إليه. فتح الرابط وحده لا يستهلكه؛ أكّد الإجراء أدناه.{% else %}اختر كلمة مرور جديدة قوية. الرابط مؤقت ويُستخدم مرة واحدة فقط، وسيتم إنهاء جلسات الدخول الحالية بعد التغيير.{% endif %}</p>
+  </div>
+  <form class="form-panel auth-form" method="post" action="{% if mode == 'verify' %}/verify-email{% else %}/reset-password{% endif %}">
+    {% if mode == 'verify' %}
+      <h2>تأكيد عنوان البريد</h2>
+      <input type="hidden" name="token" value="{{ token }}">
+      <p>إذا كان الرابط صالحاً ولم تنته صلاحيته، فسيُؤكد الحساب بعد المتابعة.</p>
+      <button class="button button-primary button-block" type="submit">تأكيد البريد الإلكتروني</button>
+    {% else %}
+      <h2>تعيين كلمة مرور جديدة</h2>
+      <input type="hidden" name="token" value="{{ token }}">
+      <label for="password">كلمة المرور الجديدة</label>
+      <input id="password" name="password" type="password" minlength="10" maxlength="256" autocomplete="new-password" required>
+      <label for="password_confirm">أعد كتابة كلمة المرور</label>
+      <input id="password_confirm" name="password_confirm" type="password" minlength="10" maxlength="256" autocomplete="new-password" required>
+      <p class="field-help">10 أحرف على الأقل. لا تعِد استخدام كلمة مرور من خدمة أخرى.</p>
+      <button class="button button-primary button-block" type="submit">تغيير كلمة المرور</button>
+    {% endif %}
+    <p class="switch-auth"><a href="/login">العودة إلى تسجيل الدخول</a></p>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading">
+  <div><p class="eyebrow">وحدة العمليات والامتثال</p><h1>مراجعة طلبات الخصوصية</h1><p>هذه قائمة الطلبات المسجلة فقط. على المشغّل التحقق من الهوية والنطاق والالتزامات المطبقة قبل اتخاذ قرار؛ لا تنفّذ الصفحة حذفاً آلياً للبيانات.</p></div>
+</section>
+<div class="notice notice-warning">لا تضع بيانات شخصية غير لازمة في الملاحظات. عند إغلاق طلب، سجّل نتيجة يمكن تدقيقها دون نسخ المحتوى الحساس إلى سجل التدقيق.</div>
+<section class="privacy-request-history admin-request-history">
+  <div class="section-heading"><div><h2>الطلبات المسجلة</h2><p>{{ requests|length }} طلباً ضمن الحد المعروض.</p></div></div>
+  {% if requests %}
+    {% for item in requests %}
+    <article class="privacy-request-card admin-request-card">
+      <div class="privacy-request-head"><div><strong>{{ item.request_type_label }}</strong><p class="request-id">مرجع: {{ item.id }}</p></div><span class="status-pill {% if item.status == 'completed' %}status-open{% elif item.status == 'rejected' %}status-danger{% else %}status-draft{% endif %}">{{ item.status_label }}</span></div>
+      <div class="request-meta"><span>البريد المرتبط: {{ item.requester_email or 'حساب غير متاح' }}</span><span>تاريخ الإنشاء: {{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') if item.created_at else '—' }}</span></div>
+      {% if item.details %}<p class="request-details">{{ item.details }}</p>{% endif %}
+      {% if item.resolution_note %}<div class="request-resolution"><strong>آخر ملاحظة:</strong> {{ item.resolution_note }}</div>{% endif %}
+      {% if item.status not in terminal_statuses %}
+      <form class="admin-request-form" method="post" action="/admin/privacy-requests/{{ item.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="status-{{ item.id }}">الحالة التالية</label>
+        <select id="status-{{ item.id }}" name="status" required>
+          {% for value, label in statuses.items() %}<option value="{{ value }}" {% if value == item.status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <label for="note-{{ item.id }}">ملاحظة المعالجة / السبب</label>
+        <textarea id="note-{{ item.id }}" name="resolution_note" maxlength="2000" rows="3" placeholder="اشرح الإجراء التالي. للإكمال أو الرفض أو طلب معلومات، اكتب 10 أحرف على الأقل." required></textarea>
+        <button class="button button-secondary button-block" type="submit">حفظ الحالة</button>
+      </form>
+      {% else %}
+      <p class="field-help">طلب نهائي مغلق؛ لا يمكن إعادة فتحه من هذه الشاشة. أنشئ طلباً جديداً إن لزم.</p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><h3>لا توجد طلبات مسجلة</h3><p>ستظهر الطلبات الجديدة هنا للمشغّلين المخوّلين فقط.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

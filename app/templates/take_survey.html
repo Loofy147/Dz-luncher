@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="survey-intro">
+  <a class="text-link" href="/">← الدراسات المتاحة</a>
+  <div class="survey-kicker"><span class="status-pill status-open">{% if remaining > 0 %}مفتوح{% else %}مكتمل{% endif %}</span><span>دراسة من الجزائر</span></div>
+  <h1>{{ campaign.title }}</h1>
+  <p class="survey-objective">{{ campaign.objective }}</p>
+  {% if campaign.description %}<p class="survey-description">{{ campaign.description }}</p>{% endif %}
+  <div class="survey-meta-row"><span><strong>{{ remaining }}</strong> مشاركة متبقية</span><span class="reward-large">{% if campaign.reward_per_response_dzd > 0 %}{{ "{:,}".format(campaign.reward_per_response_dzd) }} دج مكافأة معلنة{% else %}دون مكافأة مالية{% endif %}</span><span>الوقت المتوقع حسب طول النموذج</span></div>
+</section>
+{% if requires_login %}
+<section class="form-panel login-required"><div class="empty-icon">◎</div><h2>سجّل الدخول لحفظ المشاركة</h2><p>يلزم حساب لتقليل التكرار وربط أي استحقاق مكافأة بالمشارك. لا نستخدم بصمة الجهاز للتعرف عليك.</p><div class="hero-actions"><a class="button button-primary" href="/login">تسجيل الدخول</a><a class="button button-secondary" href="/register">إنشاء حساب مشارك</a></div></section>
+{% else %}
+<form id="participant-survey-form" class="participant-form" data-survey-slug="{{ campaign.slug }}">
+  <input type="hidden" id="submission-id" value="{{ submission_id }}">
+  <input type="hidden" id="survey-version-id" value="{{ schema.version_id }}">
+  <div class="progress-container"><div><span>الاستبيان</span><span id="progress-label">0 من {{ schema.questions|length }}</span></div><progress id="progress-bar" max="100" value="0">0%</progress></div>
+  {% for q in schema.questions %}
+    <fieldset class="question-card participant-question" data-question-id="{{ q.id }}" {% if q.show_if %}data-show-if-question-id="{{ q.show_if.question_id }}" data-show-if-any-of="{{ q.show_if.any_of|join(',') }}"{% endif %}{% if q.disqualify_if %} data-disqualify-if="{{ q.disqualify_if|join(',') }}"{% endif %}>
+      <legend><span class="question-number">{{ loop.index }}</span><span>{{ q.text }}</span>{% if q.required %}<em>مطلوب</em>{% else %}<small>اختياري</small>{% endif %}</legend>
+      {% if q.kind == 'single' %}
+        <div class="choice-list">
+        {% for option in q.options %}<label class="choice-option"><input type="radio" name="{{ q.id }}" value="{{ option.id }}" {% if q.required %}required{% endif %}><span>{{ option.label }}</span></label>{% endfor %}
+        </div>
+      {% elif q.kind == 'scale' %}
+        <div class="scale-choice-list">
+        {% for value in range(q.lo|int, q.hi|int + 1) %}<label class="scale-option"><input type="radio" name="{{ q.id }}" value="{{ value }}" {% if q.required %}required{% endif %}><span>{{ value }}</span></label>{% endfor %}
+        </div><div class="scale-hints"><span>الأدنى: {{ q.lo }}</span><span>الأعلى: {{ q.hi }}</span></div>
+      {% elif q.kind == 'number' %}
+        <input class="answer-number" type="number" name="{{ q.id }}" min="{{ q.lo }}" max="{{ q.hi }}" step="any" {% if q.required %}required{% endif %} placeholder="أدخل رقماً بين {{ q.lo }} و{{ q.hi }}">
+      {% elif q.kind == 'text' %}
+        <textarea class="answer-text" name="{{ q.id }}" rows="3" maxlength="4000" {% if q.required %}required{% endif %} placeholder="اكتب إجابتك (لا تذكر بيانات شخصية لا تحتاجها الدراسة)"></textarea>
+      {% endif %}
+    </fieldset>
+  {% endfor %}
+  <div id="submission-result" class="submission-result" role="status" aria-live="polite" hidden></div>
+  <div class="submit-bar"><p>تُحلّل إجاباتك ضمن العينة، وتُحذف الإجابات النصية الحرة من التصدير التجاري الافتراضي. قد تحتاج الإجابة إلى مراجعة بشرية عادلة.</p><button id="submit-response" class="button button-primary" type="submit">إرسال الإجابة</button></div>
+</form>
+{% endif %}
+{% endblock %}

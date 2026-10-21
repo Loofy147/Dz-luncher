@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="theme-color" content="#172d27">
+  <title>{{ title or 'Dz-luncher | منصّة الاستبيانات والتحقق' }}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-row">
+      <a class="brand" href="/" aria-label="الصفحة الرئيسية">
+        <span class="brand-mark">د</span>
+        <span><strong>Dz-luncher</strong><small>منصّة التحقق وبحوث السوق</small></span>
+      </a>
+      <nav class="main-nav" aria-label="التنقل الرئيسي">
+        <a href="/">الاستبيانات</a>
+        {% if user and user.role in ['business', 'admin'] %}<a href="/business">مساحة المشاريع</a>{% endif %}
+        {% if user %}<a href="/privacy-requests">طلبات الخصوصية</a>{% endif %}
+        {% if user and user.role == 'admin' %}<a href="/admin/privacy-requests">مراجعة الطلبات</a>{% endif %}
+        {% if user and user.role == 'admin' %}<a href="/admin/response-reviews">مراجعة الاستجابات</a>{% endif %}
+        {% if user %}<a href="/my-responses">ردودي</a>{% endif %}
+        {% if user %}<a href="/notifications">الإشعارات</a>{% endif %}
+        {% if user %}<a href="/rewards">مكافآتي</a>{% endif %}
+        {% if user and user.role == 'admin' %}<a href="/admin/response-appeals">اعتراضات الاستجابات</a>{% endif %}
+      </nav>
+      <div class="header-actions">
+        {% if user %}
+          <span class="user-chip">{{ user.display_name }}</span>
+          <form method="post" action="/logout" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="button button-quiet button-small" type="submit">خروج</button>
+          </form>
+        {% else %}
+          <a class="button button-quiet button-small" href="/login">دخول</a>
+          <a class="button button-primary button-small" href="/register">إنشاء حساب</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  <main class="shell main-content">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="shell footer-row">
+      <span>Dz-luncher · الجزائر</span>
+      <span>الاستبيان دليل ضمن حدود عينته، وليس ضماناً لنجاح المشروع.</span>
+    </div>
+  </footer>
+</body>
+</html>
