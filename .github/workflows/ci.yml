@@ -73,3 +73,34 @@ jobs:
               raise SystemExit(f"Missing migrated tables: {missing}")
           print(f"PostgreSQL migration verified; found {len(required)} required domain and operational tables.")
           PY
+      - name: Verify concurrent rate-limit counters on PostgreSQL
+        run: |
+          python - <<'PY'
+          from concurrent.futures import ThreadPoolExecutor
+          from uuid import uuid4
+          from app.db import make_engine, make_session_factory
+          from app.rate_limits import consume_rate_limit
+
+          engine = make_engine()
+          factory = make_session_factory(engine)
+          scope = f"ci:postgres-concurrency:{uuid4().hex}"
+
+          def hit(_):
+              return consume_rate_limit(
+                  factory, scope=scope, key_material="same-client",
+                  limit=5, window_seconds=60,
+              )
+
+          try:
+              with ThreadPoolExecutor(max_workers=12) as pool:
+                  results = list(pool.map(hit, range(36)))
+              admitted = sum(result.allowed for result in results)
+              attempts = [result.attempts for result in results]
+              if admitted != 5:
+                  raise SystemExit(f"Expected exactly 5 admitted requests; got {admitted}")
+              if sorted(attempts) != list(range(1, 37)):
+                  raise SystemExit(f"Counter observations are not unique and sequential: {attempts}")
+              print("PostgreSQL concurrent rate-limit verification passed: 5/36 admitted.")
+          finally:
+              engine.dispose()
+          PY
