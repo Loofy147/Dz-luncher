@@ -111,11 +111,11 @@ def consume_rate_limit(
                 "updated_at": now_seconds,
             },
         )
-        session.execute(statement)
-        bucket = session.get(AuthRateLimitBucket, bucket_key)
-        if bucket is None:
+        # Return the hit count written by this UPSERT itself, rather than
+        # issuing a second SELECT under concurrent traffic.
+        attempts = session.scalar(statement.returning(table.c.hits))
+        if attempts is None:
             raise RuntimeError("rate_limit_bucket_write_missing")
-        attempts = bucket.hits
         if _should_prune():
             session.execute(delete(AuthRateLimitBucket).where(
                 AuthRateLimitBucket.updated_at < now_seconds - BUCKET_RETENTION_SECONDS
