@@ -99,7 +99,7 @@ def _admin_client(app):
 
 
 def test_admin_accepting_held_response_reserves_reward_once_and_removes_it_from_queue(tmp_path, monkeypatch):
-    engine, factory, app, owner, person1, _, _, campaign, version = _setup(tmp_path, monkeypatch)
+    engine, factory, app, _, person1, _, admin, campaign, version = _setup(tmp_path, monkeypatch)
     client, csrf = _admin_client(app)
     try:
         held = _held_response(factory, campaign, version, person1.id, "held-accept-01")
