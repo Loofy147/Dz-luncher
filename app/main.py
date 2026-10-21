@@ -377,7 +377,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.get("/admin/privacy-requests", response_class=HTMLResponse)
     def admin_privacy_requests_page(request: Request):
-        identity = _require_identity(request, role="admin")
+        _require_identity(request, role="admin")
         requests = list_privacy_requests(request.app.state.session_factory, limit=200)
         return _render(request, "admin_privacy_requests.html", {
             "title": "مراجعة طلبات الخصوصية", "requests": requests,

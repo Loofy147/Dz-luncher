@@ -40,7 +40,7 @@ def test_privacy_request_is_private_to_requester_and_records_only_minimal_audit_
     second = TestClient(app)
     try:
         csrf_first = _signup(first, email="first@example.dz")
-        csrf_second = _signup(second, email="second@example.dz")
+        _signup(second, email="second@example.dz")
 
         page = first.get("/privacy-requests")
         assert page.status_code == 200
