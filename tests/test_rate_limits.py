@@ -142,6 +142,6 @@ def test_concurrent_sqlite_attempts_never_admit_more_than_limit(tmp_path, monkey
         with ThreadPoolExecutor(max_workers=8) as pool:
             decisions = list(pool.map(hit, range(32)))
         assert sum(decision.allowed for decision in decisions) == 5
-        assert max(decision.attempts for decision in decisions) == 32
+        assert sorted(decision.attempts for decision in decisions) == list(range(1, 33))
     finally:
         engine.dispose()
