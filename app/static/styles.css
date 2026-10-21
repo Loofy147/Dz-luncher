@@ -352,3 +352,23 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 8px; }
 .auth-notice { padding: 12px 14px; margin: 0 0 17px; border: 1px solid #d1e3d5; border-radius: 11px; background: #f1f7f0; color: var(--green); font-size: 11px; line-height: 1.8; }
 .auth-form .switch-auth { line-height: 2.1; }
 .auth-form .switch-auth a { display: inline-block; margin-inline: 3px; }
+
+
+/* Privacy-rights request intake and operator queue */
+.privacy-request-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 22px; align-items: start; }
+.privacy-request-layout h2, .privacy-request-history h2 { margin-bottom: 10px; font-size: 19px; }
+.privacy-request-history { min-width: 0; }
+.privacy-request-card { padding: 19px; margin-bottom: 13px; border: 1px solid var(--line); border-radius: 15px; background: white; }
+.privacy-request-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.privacy-request-head strong { font-size: 13px; }
+.request-id, .request-meta { color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.request-details { margin: 14px 0; color: var(--ink-soft); font-size: 12px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.request-resolution { padding: 10px 12px; margin: 11px 0; background: #f4f7f2; border-radius: 9px; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.request-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; margin-top: 10px; }
+.admin-request-history { max-width: 960px; margin: 0 auto; }
+.admin-request-form { display: grid; grid-template-columns: 1fr; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.admin-request-form label { margin-bottom: 6px; }
+.admin-request-form select, .admin-request-form textarea { margin-bottom: 12px; }
+@media (max-width: 760px) {
+  .privacy-request-layout { grid-template-columns: minmax(0, 1fr); }
+}

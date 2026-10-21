@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading">
+  <div><p class="eyebrow">حقوق أصحاب البيانات</p><h1>طلبات الخصوصية</h1><p>أرسل طلب وصول أو تصحيح أو حذف أو اعتراض. يظهر هنا سجل الطلب وحالته، ويحتاج التنفيذ إلى مراجعة مخوّلة وفق سياسة معتمدة.</p></div>
+</section>
+{% if notice %}<div class="auth-notice" role="status">{{ notice }}</div>{% endif %}
+<div class="privacy-request-layout">
+  <section class="form-panel">
+    <h2>تقديم طلب جديد</h2>
+    <p class="field-help">لا تضف كلمات مرور أو بيانات مصرفية أو بيانات حساسة لا تحتاجها لمعالجة الطلب. الحد الأقصى للتفاصيل 2000 حرف.</p>
+    <form method="post" action="/privacy-requests">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="request_type">نوع الطلب</label>
+      <select id="request_type" name="request_type" required>
+        {% for value, label in request_types.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+      <label for="details">تفاصيل تساعد على تحديد النطاق (اختياري)</label>
+      <textarea id="details" name="details" maxlength="2000" rows="4" placeholder="صف الطلب دون إدراج معلومات إضافية غير لازمة."></textarea>
+      <button class="button button-primary button-block" type="submit">تسجيل الطلب</button>
+    </form>
+  </section>
+  <section class="privacy-request-history">
+    <div class="section-heading"><div><p class="eyebrow">سجل الحساب</p><h2>طلباتي السابقة</h2><p>لا تُعرض هنا طلبات حسابات أخرى.</p></div></div>
+    {% if requests %}
+      {% for item in requests %}
+      <article class="privacy-request-card">
+        <div class="privacy-request-head"><strong>{{ item.request_type_label }}</strong><span class="status-pill {% if item.status == 'completed' %}status-open{% elif item.status == 'rejected' %}status-danger{% else %}status-draft{% endif %}">{{ item.status_label }}</span></div>
+        <p class="request-id">مرجع الطلب: {{ item.id }}</p>
+        {% if item.details %}<p class="request-details">{{ item.details }}</p>{% endif %}
+        <p class="request-meta">أُنشئ: {{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') if item.created_at else '—' }}</p>
+        {% if item.resolution_note %}<div class="request-resolution"><strong>آخر ملاحظة:</strong> {{ item.resolution_note }}</div>{% endif %}
+        {% if item.status == 'completed' %}<p class="field-help">تم وضع الطلب في حالة مكتمل من قبل مشغّل مخوّل. لا يعني ذلك أن النظام نفّذ حذفاً آلياً؛ اقرأ ملاحظة المعالجة.</p>{% endif %}
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><h3>لا توجد طلبات بعد</h3><p>عند تسجيل طلب، ستتابع حالته من هذه الصفحة.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

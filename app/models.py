@@ -56,6 +56,35 @@ class AuthActionToken(Base):
     created_at: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class DataSubjectRequest(Base):
+    """Tracked intake record for a person's privacy-rights request."""
+
+    __tablename__ = "data_subject_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "request_type in ('access', 'correction', 'deletion', 'objection', 'other')",
+            name="ck_data_subject_request_type",
+        ),
+        CheckConstraint(
+            "status in ('open', 'in_review', 'needs_information', 'completed', 'rejected')",
+            name="ck_data_subject_request_status",
+        ),
+        Index("ix_data_subject_requests_user_created", "user_id", "created_at"),
+        Index("ix_data_subject_requests_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    request_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="open")
+    resolution_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    handled_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class SurveyCampaign(Base):
     __tablename__ = "survey_campaigns"
     __table_args__ = (

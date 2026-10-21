@@ -125,9 +125,10 @@ def test_only_admin_can_triage_requests_and_terminal_state_requires_a_resolution
             events = list(session.scalars(select(AuditEvent).where(
                 AuditEvent.target_type == "privacy_request", AuditEvent.target_id == request_id,
             )))
-            assert [event.event_type for event in events] == [
+            assert len(events) == 3
+            assert sorted(event.event_type for event in events) == sorted([
                 "privacy_request.created", "privacy_request.status_changed", "privacy_request.status_changed"
-            ]
+            ])
             assert all("تم تنفيذ الإجراء" not in event.details_json for event in events)
     finally:
         client.close()

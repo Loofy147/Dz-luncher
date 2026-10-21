@@ -19,6 +19,7 @@ from app.auth_flows import (
     issue_auth_action_token, reset_password_with_token, verify_email_token,
 )
 from app.email_delivery import send_auth_email, validate_email_delivery_configuration
+from app.privacy_requests import create_privacy_request, list_privacy_requests, update_privacy_request
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -344,6 +345,67 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
         response = RedirectResponse("/", status_code=303)
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
+
+    @app.get("/privacy-requests", response_class=HTMLResponse)
+    def privacy_requests_page(request: Request):
+        identity = _require_identity(request)
+        requests = list_privacy_requests(request.app.state.session_factory, requester_id=identity.user_id)
+        notices = {
+            "request_submitted": "تم تسجيل طلب الخصوصية. ستظهر حالته هنا؛ تسجيل الطلب لا يعني أن التنفيذ اكتمل.",
+        }
+        return _render(request, "privacy_requests.html", {
+            "title": "طلبات الخصوصية", "requests": requests,
+            "request_types": {
+                "access": "الوصول إلى البيانات", "correction": "تصحيح البيانات",
+                "deletion": "طلب الحذف", "objection": "الاعتراض على معالجة", "other": "طلب خصوصية آخر",
+            },
+            "notice": _notice(request, notices),
+        })
+
+    @app.post("/privacy-requests")
+    async def create_privacy_request_action(request: Request):
+        identity = _require_identity(request)
+        form = await _form(request)
+        _csrf(request, identity, form)
+        create_privacy_request(
+            request.app.state.session_factory,
+            requester_id=identity.user_id,
+            request_type=form.get("request_type", ""),
+            details=form.get("details", ""),
+        )
+        return RedirectResponse("/privacy-requests?notice=request_submitted", status_code=303)
+
+    @app.get("/admin/privacy-requests", response_class=HTMLResponse)
+    def admin_privacy_requests_page(request: Request):
+        identity = _require_identity(request, role="admin")
+        requests = list_privacy_requests(request.app.state.session_factory, limit=200)
+        return _render(request, "admin_privacy_requests.html", {
+            "title": "مراجعة طلبات الخصوصية", "requests": requests,
+            "request_types": {
+                "access": "الوصول إلى البيانات", "correction": "تصحيح البيانات",
+                "deletion": "طلب الحذف", "objection": "الاعتراض على معالجة", "other": "طلب خصوصية آخر",
+            },
+            "statuses": {
+                "open": "مفتوح", "in_review": "قيد المراجعة",
+                "needs_information": "يحتاج معلومات إضافية",
+                "completed": "مكتمل", "rejected": "مرفوض مع توضيح السبب",
+            },
+            "terminal_statuses": ["completed", "rejected"],
+        })
+
+    @app.post("/admin/privacy-requests/{request_id}")
+    async def admin_update_privacy_request_action(request: Request, request_id: str):
+        identity = _require_identity(request, role="admin")
+        form = await _form(request)
+        _csrf(request, identity, form)
+        update_privacy_request(
+            request.app.state.session_factory,
+            request_id=request_id,
+            actor_user_id=identity.user_id,
+            new_status=form.get("status", ""),
+            resolution_note=form.get("resolution_note", ""),
+        )
+        return RedirectResponse("/admin/privacy-requests", status_code=303)
 
     @app.get("/business", response_class=HTMLResponse)
     def business_home(request: Request):
