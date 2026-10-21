@@ -687,12 +687,13 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
         # account+campaign limit to prevent rotation across network addresses.
         enforce_rate_limit(request, "request:survey_response_ip")
         identity = _require_identity(request)
+        _csrf(request, identity)
+        # A rejected CSRF request must not spend the authenticated quota.
         enforce_rate_limit(
             request,
             "request:survey_response_user",
             key_material=f"{identity.user_id}:{slug}",
         )
-        _csrf(request, identity)
         try:
             payload = await request.json()
         except (ValueError, json.JSONDecodeError) as exc:
