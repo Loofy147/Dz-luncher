@@ -131,17 +131,33 @@ def consume_rate_limit(
 
 
 def _client_key(request: Request) -> str:
-    # Never trust a forwarded header by default. Opt in only when the ingress
-    # sanitizes/overwrites the configured header before forwarding the request.
-    header_name = os.getenv("RATE_LIMIT_TRUSTED_CLIENT_IP_HEADER", "").strip().lower()
-    if header_name in {"x-real-ip", "cf-connecting-ip"}:
-        candidate = request.headers.get(header_name, "").strip()
-        try:
-            return str(ipaddress.ip_address(candidate))
-        except ValueError:
-            pass
+    """Use forwarded identity only when the immediate peer is in an explicit trust CIDR."""
     peer = request.client.host if request.client and request.client.host else "unknown"
-    return str(peer)[:128]
+    header_name = os.getenv("RATE_LIMIT_TRUSTED_CLIENT_IP_HEADER", "").strip().lower()
+    if header_name not in {"x-real-ip", "cf-connecting-ip"}:
+        return str(peer)[:128]
+
+    raw_cidrs = os.getenv("RATE_LIMIT_TRUSTED_PROXY_CIDRS", "").strip()
+    if not raw_cidrs:
+        return str(peer)[:128]
+    try:
+        networks = [
+            ipaddress.ip_network(item.strip(), strict=False)
+            for item in raw_cidrs.split(",")
+            if item.strip()
+        ]
+        peer_ip = ipaddress.ip_address(peer)
+    except ValueError:
+        # Invalid or ambiguous trust configuration must not grant trust to a proxy.
+        return str(peer)[:128]
+    if not networks or not any(peer_ip.version == network.version and peer_ip in network for network in networks):
+        return str(peer)[:128]
+
+    candidate = request.headers.get(header_name, "").strip()
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return str(peer)[:128]
 
 
 def enforce_auth_rate_limit(request: Request, action: str) -> None:
