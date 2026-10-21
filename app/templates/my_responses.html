@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading">
+  <div><p class="eyebrow">سجل المشارك</p><h1>ردودي وحالاتها</h1><p>تابع حالة الاستجابات. إذا أُغلق ردك بالرفض بعد مراجعة بشرية، يمكنك تقديم اعتراض واحد يراجعه مشغّل مخوّل مختلفاً عن الإشارة الآلية.</p></div>
+  <a class="button button-secondary" href="/rewards">سجل المكافآت</a>
+</section>
+{% if notice %}<div class="auth-notice" role="status">{{ notice }}</div>{% endif %}
+<section class="participant-response-list">
+  {% if responses %}
+    {% for item in responses %}
+    <article class="participant-response-card">
+      <div class="participant-response-head">
+        <div><h2>{{ item.survey_title }}</h2><p class="response-reference">مرجع الاستجابة: {{ item.response_id }}</p></div>
+        <span class="status-pill {% if item.status in ['accepted', 'accepted_flagged'] %}status-open{% elif item.status == 'review_rejected' %}status-danger{% elif item.status == 'appeal_pending' %}status-draft{% else %}status-draft{% endif %}">{{ item.status_label }}</span>
+      </div>
+      <div class="response-history-meta">
+        <span>وقت الإرسال: {{ item.submitted_at.strftime('%Y-%m-%d %H:%M UTC') if item.submitted_at else '—' }}</span>
+        {% if item.appeal_status_label %}<span>{{ item.appeal_status_label }}</span>{% endif %}
+      </div>
+      {% if item.can_appeal %}
+      <details class="appeal-form-details">
+        <summary>تقديم اعتراض على الرفض</summary>
+        <p>اكتب سبباً متعلقاً بشروط الدراسة أو إجابتك. الاعتراض لا يضمن تغيير النتيجة؛ يراجعه مشغّل مخوّل. يُسمح باعتراض واحد لكل استجابة.</p>
+        <form method="post" action="/my-responses/{{ item.response_id }}/appeal">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="appeal-reason-{{ item.response_id }}">سبب الاعتراض</label>
+          <textarea id="appeal-reason-{{ item.response_id }}" name="reason" minlength="10" maxlength="2000" rows="3" required placeholder="اشرح ما ينبغي إعادة النظر فيه، دون إضافة بيانات شخصية غير لازمة."></textarea>
+          <button class="button button-primary" type="submit">إرسال الاعتراض</button>
+        </form>
+      </details>
+      {% elif item.appeal_status == 'upheld' %}
+        <div class="appeal-outcome"><strong>تمت مراجعة الاعتراض.</strong>{% if item.appeal_resolution_note %}<p>{{ item.appeal_resolution_note }}</p>{% endif %}</div>
+      {% elif item.appeal_status == 'overturned' %}
+        <div class="appeal-outcome"><strong>تم إلغاء الرفض.</strong><p>قُبلت الاستجابة بعد المراجعة الثانية. تُعرض حالة الاستحقاق في سجل المكافآت إذا كانت الدراسة تقدم مكافأة.</p>{% if item.appeal_resolution_note %}<p>{{ item.appeal_resolution_note }}</p>{% endif %}</div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">✓</div><h3>لا توجد استجابات مسجّلة بعد</h3><p>ستظهر الاستجابات هنا بعد إرسالها أثناء تسجيل الدخول.</p><a class="button button-primary" href="/">استكشاف الدراسات</a></div>
+  {% endif %}
+</section>
+{% endblock %}

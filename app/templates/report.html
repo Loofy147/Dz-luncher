@@ -4,7 +4,7 @@
 <div class="notice notice-warning"><strong>حدود التفسير:</strong> الإجابات المعلنة تقيس ما قاله المشاركون، لا ما دفعوه فعلياً. العينة التطوعية ليست بالضرورة ممثلة للسوق الجزائري، وفواصل الثقة لا تصلح انحياز الاختيار.</div>
 <section class="section-heading"><div><h2>تدفّق العينة</h2><p>تظهر كل حالة منفصلة حتى لا يُخلط الإقصاء التأهيلي مع ضعف جودة الإجابة.</p></div></section>
 <div class="status-flow-grid">
-{% for key, label in [('accepted','مقبول'),('accepted_flagged','مقبول مع إشارة'),('hold','مراجعة بشرية'),('screened_out','غير مطابق للتأهيل'),('invalid','بيانات غير صالحة'),('quota_full','حصة مكتملة'),('excluded_duplicate','تكرار مستبعد')] %}
+{% for key, label in [('accepted','مقبول'),('accepted_flagged','مقبول بعد المراجعة / مع إشارة'),('hold','مراجعة بشرية'),('appeal_pending','اعتراض مفتوح'),('review_rejected','رفض مثبت بعد المراجعة'),('screened_out','غير مطابق للتأهيل'),('invalid','بيانات غير صالحة'),('quota_full','حصة مكتملة'),('excluded_duplicate','تكرار مستبعد')] %}
 <div class="status-metric"><span>{{ label }}</span><strong>{{ report.sample_flow.get(key, 0) }}</strong></div>
 {% endfor %}
 </div>

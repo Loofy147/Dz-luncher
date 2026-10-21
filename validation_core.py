@@ -835,7 +835,7 @@ def build_report(
         if row.response.survey_version_id != survey.version_id:
             raise ValueError("processed_response_survey_version_mismatch")
     accepted = [r for r in rows if r.status in ACCEPTED_STATUSES]
-    status_values = ("accepted", "accepted_flagged", "hold", "review_rejected", "quota_full", "screened_out", "invalid", "excluded_duplicate")
+    status_values = ("accepted", "accepted_flagged", "hold", "appeal_pending", "review_rejected", "quota_full", "screened_out", "invalid", "excluded_duplicate")
     counted_statuses = Counter(row.status for row in rows)
     status_counts = {status: counted_statuses.get(status, 0) for status in status_values}
     hypothesis_results: list[dict[str, Any]] = []

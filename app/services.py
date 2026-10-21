@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.models import (
-    AuditEvent, RewardLedgerEntry, RewardObligation, ResponseReview, SurveyCampaign,
+    AuditEvent, RewardLedgerEntry, RewardObligation, ResponseAppeal, ResponseReview, SurveyCampaign,
     SurveyResponse, SurveyVersion, User,
 )
 from app.security import hash_password, verify_password
@@ -613,13 +613,20 @@ def campaign_report(session_factory: sessionmaker, *, slug: str, owner_id: str) 
             ResponseReview.response_id.in_([item.id for item in persisted])
         ))) if persisted else []
         review_by_response = {review.response_id: review for review in reviews}
+        appeals = list(session.scalars(select(ResponseAppeal).where(
+            ResponseAppeal.response_id.in_([item.id for item in persisted])
+        ))) if persisted else []
+        appeal_by_response = {appeal.response_id: appeal for appeal in appeals}
         for item in persisted:
             response = Response(
                 submission_id=item.submission_id, participant_id=item.participant_id, device_id=None,
                 seconds=item.elapsed_seconds or 0, answers=_load(item.answers_json, {}), survey_version_id=version.version_id,
             )
             review = review_by_response.get(item.id)
-            report_status = "review_rejected" if item.status == "hold" and review and review.decision == "reject" else item.status
+            appeal = appeal_by_response.get(item.id)
+            report_status = item.status
+            if item.status == "hold" and review and review.decision == "reject":
+                report_status = "appeal_pending" if appeal and appeal.status in {"open", "in_review"} else "review_rejected"
             rows.append(ProcessedResponse(
                 response=response, status=report_status, signals=tuple(_load(item.signals_json, [])),
                 review_groups=tuple(_load(item.review_groups_json, [])), errors=tuple(_load(item.errors_json, [])),
@@ -696,11 +703,19 @@ def response_status_counts(session_factory: sessionmaker, slug: str, owner_id: s
             SurveyResponse.survey_id == campaign.id,
         )))
         rejected_ids = {review.response_id for review in reviews if review.decision == "reject"}
-        counts = Counter(
-            "review_rejected" if row.status == "hold" and row.id in rejected_ids else row.status
-            for row in rows
-        )
+        appeals = list(session.scalars(select(ResponseAppeal).join(SurveyResponse).where(
+            SurveyResponse.survey_id == campaign.id,
+        )))
+        appeal_by_response = {appeal.response_id: appeal for appeal in appeals}
+        counts = Counter()
+        for row in rows:
+            appeal = appeal_by_response.get(row.id)
+            if row.status == "hold" and row.id in rejected_ids:
+                status = "appeal_pending" if appeal and appeal.status in {"open", "in_review"} else "review_rejected"
+            else:
+                status = row.status
+            counts[status] += 1
         return {status: counts.get(status, 0) for status in (
-            "accepted", "accepted_flagged", "hold", "review_rejected",
+            "accepted", "accepted_flagged", "hold", "appeal_pending", "review_rejected",
             "screened_out", "invalid", "quota_full", "excluded_duplicate",
         )}

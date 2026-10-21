@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading">
+  <div><p class="eyebrow">مراجعة من المستوى الثاني</p><h1>الاعتراضات على قرارات المراجعة</h1><p>هذه الاعتراضات تخص استجابات رُفضت بعد مراجعة بشرية أولى. قارن سبب الاعتراض بالإجابة ومعايير الدراسة قبل تثبيت قرار نهائي.</p></div>
+</section>
+{% if request.query_params.get('notice') == 'appeal_resolved' %}<div class="auth-notice" role="status">تم حفظ قرار الاعتراض. اطّلع على الحالة والدفتر والتقرير المرتبطين قبل اتخاذ أي إجراء آخر.</div>{% endif %}
+<div class="notice notice-warning">«تثبيت الرفض» يبقي الاستجابة خارج العدد المقبول ولا ينشئ مكافأة. «إلغاء الرفض» يعيد فحص حد الحملة والحصص والتمويل؛ إذا تعذر قبول الاستجابة بأمان، سيرفض النظام العملية دون تغيير القرار.</div>
+<section class="appeal-adjudication-list">
+  <div class="section-heading"><div><h2>الاعتراضات المفتوحة</h2><p>{{ appeals|length }} اعتراضاً ضمن أول 100 طلب.</p></div></div>
+  {% if appeals %}
+    {% for item in appeals %}
+    <article class="appeal-adjudication-card">
+      <header class="appeal-adjudication-head">
+        <div><p class="eyebrow">{{ item.survey_title }}</p><h3>اعتراض على استجابة مرفوضة</h3><p class="response-reference">معرّف الاستجابة: {{ item.response_id }}</p><p class="response-reference">معرّف الاعتراض: {{ item.appeal_id }}</p></div>
+        <span class="status-pill status-draft">{{ item.status_label }}</span>
+      </header>
+      <div class="appeal-adjudication-meta">
+        <span>المشارك المستعار: {{ item.participant_pseudonym[:12] }}</span>
+        <span>أُنشئ الاعتراض: {{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') if item.created_at else '—' }}</span>
+        <span>سبب القرار الأول: {{ item.original_reason_code }}</span>
+      </div>
+      <section class="appeal-reason"><strong>سبب الاعتراض</strong><p>{{ item.reason }}</p></section>
+      <section class="appeal-reason"><strong>ملاحظة المراجعة الأولى</strong><p>{{ item.original_review_note }}</p></section>
+      <details class="review-answers"><summary>فحص إجابات الاستجابة ({{ item.answers|length }} سؤال)</summary>
+        {% for answer in item.answers %}<div class="review-answer"><strong>{{ answer.question }}</strong><p>{{ answer.answer }}</p></div>{% endfor %}
+      </details>
+      <form class="appeal-adjudication-form" method="post" action="/admin/response-appeals/{{ item.appeal_id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <fieldset><legend>نتيجة المراجعة الثانية</legend>
+          <label class="appeal-choice"><input type="radio" name="decision" value="uphold" required><span><strong>تثبيت الرفض</strong><small>لا تُقبل الاستجابة ولا تُنشأ مكافأة.</small></span></label>
+          <label class="appeal-choice"><input type="radio" name="decision" value="overturn" required><span><strong>إلغاء الرفض وقبول الاستجابة</strong><small>بعد نجاح فحص الحصة والتمويل، تُقبل الاستجابة وتُحجز المكافأة إن كانت مستحقة.</small></span></label>
+        </fieldset>
+        <label for="appeal-resolution-{{ item.appeal_id }}">سبب القرار النهائي</label>
+        <textarea id="appeal-resolution-{{ item.appeal_id }}" name="resolution_note" minlength="10" maxlength="2000" rows="3" required placeholder="وثّق الدليل الذي حسم الاعتراض. من 10 إلى 2000 حرف."></textarea>
+        <button class="button button-primary" type="submit">تثبيت القرار النهائي</button>
+      </form>
+    </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">✓</div><h3>لا توجد اعتراضات مفتوحة</h3><p>ستظهر هنا الاعتراضات التي تنتظر مراجعة ثانية.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

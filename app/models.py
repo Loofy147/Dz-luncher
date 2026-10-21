@@ -174,6 +174,32 @@ class ResponseReview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
 
 
+class ResponseAppeal(Base):
+    """A participant's one-time appeal and independent second-level adjudication."""
+
+    __tablename__ = "response_appeals"
+    __table_args__ = (
+        UniqueConstraint("response_id", name="uq_response_appeal_response"),
+        CheckConstraint(
+            "status in ('open', 'in_review', 'upheld', 'overturned')",
+            name="ck_response_appeal_status",
+        ),
+        Index("ix_response_appeals_status_created", "status", "created_at"),
+        Index("ix_response_appeals_participant_created", "participant_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    response_id: Mapped[str] = mapped_column(ForeignKey("survey_responses.id", ondelete="CASCADE"), nullable=False)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+    resolution_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    handled_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class RewardLedgerEntry(Base):
     __tablename__ = "reward_ledger"
     __table_args__ = (

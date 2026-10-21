@@ -400,3 +400,37 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 8px; }
   .review-signals { grid-template-columns: minmax(0, 1fr); }
   .review-decision-form .button { width: 100%; }
 }
+
+
+/* Participant response history and second-level appeal adjudication */
+.participant-response-list, .appeal-adjudication-list { max-width: 1040px; margin: 0 auto; }
+.participant-response-card, .appeal-adjudication-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 15px; }
+.participant-response-head, .appeal-adjudication-head { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.participant-response-head h2, .appeal-adjudication-head h3 { margin: 0 0 5px; font-size: 17px; }
+.response-reference { margin: 4px 0; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.response-history-meta, .appeal-adjudication-meta { display: flex; flex-wrap: wrap; gap: 6px 15px; padding: 10px 0; color: var(--muted); font-size: 10px; }
+.appeal-form-details { margin-top: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfa; }
+.appeal-form-details summary { cursor: pointer; font-weight: 800; color: var(--green); font-size: 12px; }
+.appeal-form-details > p { color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.appeal-form-details .button { min-width: 180px; }
+.appeal-outcome { margin-top: 13px; padding: 11px 13px; border-radius: 9px; background: #f4f7f2; font-size: 11px; line-height: 1.8; }
+.appeal-outcome p { margin: 4px 0 0; color: var(--ink-soft); white-space: pre-wrap; }
+.appeal-adjudication-card { padding: 21px; }
+.appeal-adjudication-head h3 { font-size: 18px; }
+.appeal-reason { padding: 12px 14px; border-radius: 10px; background: #f6f8f4; margin: 10px 0; }
+.appeal-reason strong { font-size: 11px; }
+.appeal-reason p { margin: 5px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.appeal-adjudication-form { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.appeal-adjudication-form fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; }
+.appeal-adjudication-form legend { padding: 0 5px; font-size: 11px; font-weight: 800; }
+.appeal-choice { display: flex; gap: 10px; align-items: start; margin: 8px 0; cursor: pointer; }
+.appeal-choice span { display: grid; gap: 4px; }
+.appeal-choice strong { font-size: 11px; }
+.appeal-choice small { font-size: 10px; color: var(--muted); font-weight: 400; }
+.appeal-choice input { margin-top: 3px !important; }
+.appeal-adjudication-form .button { min-width: 220px; }
+@media (max-width: 620px) {
+  .participant-response-card, .appeal-adjudication-card { padding: 15px; }
+  .participant-response-head, .appeal-adjudication-head { gap: 8px; }
+  .appeal-adjudication-form .button, .appeal-form-details .button { width: 100%; }
+}

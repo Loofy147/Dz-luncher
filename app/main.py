@@ -21,6 +21,9 @@ from app.auth_flows import (
 from app.email_delivery import send_auth_email, validate_email_delivery_configuration
 from app.privacy_requests import create_privacy_request, list_privacy_requests, update_privacy_request
 from app.response_moderation import list_response_review_queue, review_held_response
+from app.response_appeals import (
+    create_response_appeal, list_participant_responses, list_response_appeal_queue, resolve_response_appeal,
+)
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -439,6 +442,28 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
         )
         return RedirectResponse("/admin/response-reviews?notice=review_saved", status_code=303)
 
+    @app.get("/admin/response-appeals", response_class=HTMLResponse)
+    def admin_response_appeals_page(request: Request):
+        _require_identity(request, role="admin")
+        return _render(request, "admin_response_appeals.html", {
+            "title": "الاعتراضات على قرارات المراجعة",
+            "appeals": list_response_appeal_queue(request.app.state.session_factory),
+        })
+
+    @app.post("/admin/response-appeals/{appeal_id}")
+    async def admin_resolve_response_appeal_action(request: Request, appeal_id: str):
+        identity = _require_identity(request, role="admin")
+        form = await _form(request)
+        _csrf(request, identity, form)
+        resolve_response_appeal(
+            request.app.state.session_factory,
+            appeal_id=appeal_id,
+            reviewer_id=identity.user_id,
+            decision=form.get("decision", ""),
+            resolution_note=form.get("resolution_note", ""),
+        )
+        return RedirectResponse("/admin/response-appeals?notice=appeal_resolved", status_code=303)
+
     @app.get("/business", response_class=HTMLResponse)
     def business_home(request: Request):
         identity = _require_identity(request, role="business")
@@ -566,6 +591,31 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
             "accepted_n": data["accepted_n"], "remaining": data["remaining"],
             "requires_login": identity is None, "submission_id": uuid_hex(),
         })
+
+    @app.get("/my-responses", response_class=HTMLResponse)
+    def my_responses_page(request: Request):
+        identity = _require_identity(request)
+        notices = {
+            "appeal_submitted": "تم تسجيل الاعتراض. سيظهر هنا تحديث الحالة بعد مراجعته؛ تقديم الاعتراض لا يعني قبوله.",
+        }
+        return _render(request, "my_responses.html", {
+            "title": "ردودي وحالاتها",
+            "responses": list_participant_responses(request.app.state.session_factory, participant_id=identity.user_id),
+            "notice": _notice(request, notices),
+        })
+
+    @app.post("/my-responses/{response_id}/appeal")
+    async def create_response_appeal_action(request: Request, response_id: str):
+        identity = _require_identity(request)
+        form = await _form(request)
+        _csrf(request, identity, form)
+        create_response_appeal(
+            request.app.state.session_factory,
+            participant_id=identity.user_id,
+            response_id=response_id,
+            reason=form.get("reason", ""),
+        )
+        return RedirectResponse("/my-responses?notice=appeal_submitted", status_code=303)
 
     @app.get("/rewards", response_class=HTMLResponse)
     def rewards_page(request: Request):
