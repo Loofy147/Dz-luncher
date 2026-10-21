@@ -66,3 +66,37 @@ def test_submission_attempts_are_limited_per_participant_and_campaign(tmp_path, 
         assert 1 <= int(blocked.headers["Retry-After"]) <= 3600
     finally:
         engine.dispose()
+
+
+
+def test_rejected_csrf_does_not_consume_participant_campaign_budget(tmp_path, monkeypatch):
+    engine, factory, app = _app(tmp_path, monkeypatch, "submission-csrf-budget.db")
+    try:
+        user = register_user(
+            factory,
+            email="csrf-budget@example.dz",
+            password="correct-horse-battery",
+            display_name="مشارك CSRF",
+            role="participant",
+        )
+        signed_session, csrf_token = create_session(factory, user)
+        with TestClient(app) as client:
+            client.cookies.set(SESSION_COOKIE, signed_session)
+            invalid_csrf = [
+                client.post("/api/surveys/nonexistent/responses", json={})
+                for _ in range(10)
+            ]
+            assert all(response.status_code == 403 for response in invalid_csrf)
+
+            valid_csrf = [
+                client.post(
+                    "/api/surveys/nonexistent/responses",
+                    json={},
+                    headers={"X-CSRF-Token": csrf_token},
+                )
+                for _ in range(11)
+            ]
+        assert all(response.status_code != 429 for response in valid_csrf[:10])
+        assert valid_csrf[10].status_code == 429
+    finally:
+        engine.dispose()
