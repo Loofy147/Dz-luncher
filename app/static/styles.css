@@ -372,3 +372,31 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 8px; }
 @media (max-width: 760px) {
   .privacy-request-layout { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Human response-moderation queue */
+.review-queue { max-width: 1040px; margin: 0 auto; }
+.review-card { margin-bottom: 17px; border: 1px solid var(--line); border-radius: 17px; padding: 20px; background: #fff; }
+.review-card-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
+.review-card-head h3 { margin: 0 0 5px; font-size: 18px; }
+.review-card-head .eyebrow { margin-bottom: 4px; }
+.review-id { color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.review-meta { display: flex; flex-wrap: wrap; gap: 7px 14px; color: var(--muted); font-size: 10px; padding: 10px 0 13px; border-bottom: 1px solid var(--line); }
+.review-signals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 13px 0; }
+.review-signals > div { display: grid; gap: 5px; align-content: start; padding: 10px; border-radius: 9px; background: #f7f8f5; }
+.review-signals strong { font-size: 10px; color: var(--ink); }
+.review-signals span { color: var(--ink-soft); font-size: 10px; overflow-wrap: anywhere; }
+.review-answers { margin: 5px 0 14px; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+.review-answers summary { cursor: pointer; color: var(--green); font-weight: 800; font-size: 11px; }
+.review-answer { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.review-answer:last-child { border-bottom: 0; }
+.review-answer strong { font-size: 11px; }
+.review-answer p { margin: 5px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.review-decision-form { padding-top: 14px; border-top: 1px solid var(--line); }
+.review-decision-form .field-full { grid-column: 1 / -1; }
+.review-decision-form .button { min-width: 230px; }
+@media (max-width: 620px) {
+  .review-card { padding: 15px; }
+  .review-signals { grid-template-columns: minmax(0, 1fr); }
+  .review-decision-form .button { width: 100%; }
+}

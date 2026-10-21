@@ -5,6 +5,7 @@
 - Arabic-first RTL server-rendered web app with FastAPI/Jinja, registration/login, database-backed sessions and CSRF protection.
 - Email verification and password-reset flows: purpose-bound random tokens stored as SHA-256 digests, 24-hour verification and 30-minute recovery expiry, one-time consumption, resend cooldown, privacy-preserving generic recovery responses, password-reset session revocation, audit events, and SMTP TLS configuration gates.
 - Authenticated privacy-request intake for access/correction/deletion/objection/other; requesters can view only their own records. Admin-only status triage supports audited state transitions, mandatory resolution notes for terminal decisions, and keeps free-text request detail out of audit metadata. Completion is an operator assertion, not an automatic erasure action.
+- Admin-only human review queue for responses held by quality signals, with a one-decision record, reason code, reviewer note, and minimal audit metadata. Acceptance is transactional with quota/campaign-cap rechecks and reward reservation; rejected holds remain distinguishable in reports without a destructive or misleading database status rewrite.
 - SQLAlchemy domain model: users with email-verification state, sessions, purpose-bound one-time auth tokens, campaigns, immutable published versions, responses, reward obligations, double-entry-style ledger deltas, and audit events.
 - Survey contract supporting single-choice, scale, numeric, and optional text questions; conditional display, screening, quotas, response-quality signals, duplicate submissions, and idempotency.
 - Nine complete Arabic-first study templates are available in the business builder and template API; choosing a template prefills an unsaved form, and an explicit save creates a private draft without publishing it.
@@ -19,7 +20,7 @@
 ## Explicitly not complete
 
 - No integrated payment rail, banking link, automatic payout, escrow service, or financial licence determination.
-- Enterprise SSO, role invitations, response-moderation console, participant appeal workflow, and managed retention/deletion scheduler remain open. Privacy-request intake and audited operator triage exist, but they do not perform automatic account/data deletion or legal determinations.
+- Enterprise SSO, role invitations, participant appeal/notification workflow, and managed retention/deletion scheduler remain open. Privacy-request intake and audited operator triage exist, but they do not perform automatic account/data deletion or legal determinations.
 - No real Algerian participant pilot; quality weights and false-positive/false-negative rates are not calibrated against human-labelled data.
 - No independent security review, penetration test, load test, PostgreSQL race test in CI, or tested backup restoration.
 - No legal conclusion on hosting jurisdiction, cross-border transfers, or campaign-specific lawful basis. These remain go-live gates.

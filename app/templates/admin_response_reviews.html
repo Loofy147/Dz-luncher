@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading compact-heading">
+  <div><p class="eyebrow">مراجعة بشرية مستقلة</p><h1>الاستجابات المعلّقة</h1><p>الإشارات الآلية لا تثبت وحدها سوء السلوك. افحص السياق وسبب كل إشارة وشروط الحملة قبل اتخاذ القرار. القرارات النهائية تُسجل ولا يمكن تطبيقها مرة أخرى على الاستجابة نفسها.</p></div>
+</section>
+{% if request.query_params.get('notice') == 'review_saved' %}<div class="auth-notice" role="status">تم تسجيل قرار المراجعة وتحديث حالة الاستجابة والدفتر عند القبول.</div>{% endif %}
+<div class="notice notice-warning">القبول يحجز المكافأة من الرصيد المموّل داخل معاملة واحدة. إذا اكتملت الحصة أو تعذر تغطية المكافأة، لن يُقبل الرد. الرفض لا يصرف مكافأة. لا تسجّل أسماء أو بيانات شخصية في ملاحظة المراجعة.</div>
+<section class="review-queue">
+  <div class="section-heading"><div><h2>قائمة الانتظار</h2><p>{{ responses|length }} استجابة تحتاج قراراً، ضمن أول 100 عنصر.</p></div></div>
+  {% if responses %}
+    {% for item in responses %}
+    <article class="review-card">
+      <header class="review-card-head">
+        <div><p class="eyebrow">{{ item.survey_title }}</p><h3>استجابة معلّقة</h3><p class="review-id">معرّف: {{ item.response_id }}</p></div>
+        <span class="status-pill status-draft">قيد المراجعة</span>
+      </header>
+      <div class="review-meta">
+        <span>مشارك مستعار: {{ item.participant_pseudonym[:12] }}</span>
+        <span>مدة الإكمال: {{ item.elapsed_seconds or 0 }} ثانية</span>
+        <span>أُرسلت: {{ item.submitted_at.strftime('%Y-%m-%d %H:%M UTC') if item.submitted_at else '—' }}</span>
+      </div>
+      <div class="review-signals">
+        <div><strong>مجموعات الإشارة</strong><span>{{ item.review_groups|join('، ') if item.review_groups else 'لا توجد مجموعة ظاهرة' }}</span></div>
+        <div><strong>تفاصيل الإشارات</strong><span>{{ item.signals|join('، ') if item.signals else 'لا توجد إشارة' }}</span></div>
+      </div>
+      <details class="review-answers">
+        <summary>عرض الإجابات المنقّحة للتقييم ({{ item.answers|length }} سؤال)</summary>
+        {% for answer in item.answers %}
+        <div class="review-answer"><strong>{{ answer.question }}</strong><p>{{ answer.answer }}</p></div>
+        {% endfor %}
+      </details>
+      <form class="review-decision-form" method="post" action="/admin/response-reviews/{{ item.response_id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field-grid">
+          <div><label for="decision-{{ item.response_id }}">القرار</label><select id="decision-{{ item.response_id }}" name="decision" required><option value="accept">قبول بعد المراجعة</option><option value="reject">رفض مبرر بعد المراجعة</option></select></div>
+          <div><label for="reason-{{ item.response_id }}">سبب القرار</label><select id="reason-{{ item.response_id }}" name="reason_code" required>{% for value, label in review_reasons.items() %}<option value="{{ value }}" {% if value == 'valid_response' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="field-full"><label for="note-{{ item.response_id }}">ملاحظة المراجع</label><textarea id="note-{{ item.response_id }}" name="note" minlength="10" maxlength="2000" rows="3" required placeholder="اذكر السبب المحدد وربطه بمعايير الدراسة. من 10 إلى 2000 حرف."></textarea></div>
+        </div>
+        <button class="button button-primary" type="submit">تثبيت قرار المراجعة</button>
+      </form>
+    </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">✓</div><h3>لا توجد استجابات معلّقة حالياً</h3><p>ستظهر هنا الاستجابات التي تتطلب مراجعة بشرية ولم يُسجّل لها قرار نهائي بعد.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

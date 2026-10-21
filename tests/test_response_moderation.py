@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 
 import pytest
@@ -14,6 +13,7 @@ from app.services import (
     ServiceError, campaign_report, create_draft, fund_campaign, publish_campaign,
     register_user, submit_response,
 )
+from app.response_moderation import review_held_response
 
 
 def _payload(reward: int = 10, limit: int = 2) -> dict:
@@ -133,7 +133,6 @@ def test_admin_accepting_held_response_reserves_reward_once_and_removes_it_from_
 
         with pytest.raises(ServiceError) as raised:
             # Only held responses with no completed review can enter the review transition.
-            from app.response_moderation import review_held_response
             review_held_response(
                 factory, response_id=held["response_id"], reviewer_id=owner.id,
                 decision="reject", reason_code="unusable_response", note="قرار مكرر",

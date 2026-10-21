@@ -20,6 +20,7 @@ from app.auth_flows import (
 )
 from app.email_delivery import send_auth_email, validate_email_delivery_configuration
 from app.privacy_requests import create_privacy_request, list_privacy_requests, update_privacy_request
+from app.response_moderation import list_response_review_queue, review_held_response
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -406,6 +407,37 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
             resolution_note=form.get("resolution_note", ""),
         )
         return RedirectResponse("/admin/privacy-requests", status_code=303)
+
+    @app.get("/admin/response-reviews", response_class=HTMLResponse)
+    def admin_response_reviews_page(request: Request):
+        _require_identity(request, role="admin")
+        return _render(request, "admin_response_reviews.html", {
+            "title": "مراجعة الاستجابات المعلّقة",
+            "responses": list_response_review_queue(request.app.state.session_factory),
+            "review_reasons": {
+                "valid_response": "استجابة مستوفية للشروط",
+                "ineligible": "عدم مطابقة شروط الأهلية",
+                "unusable_response": "إجابة غير قابلة للاستخدام",
+                "confirmed_duplicate": "تكرار تم التحقق منه",
+                "policy_violation": "مخالفة سياسة الدراسة",
+                "other": "سبب آخر موضح",
+            },
+        })
+
+    @app.post("/admin/response-reviews/{response_id}")
+    async def admin_review_response_action(request: Request, response_id: str):
+        identity = _require_identity(request, role="admin")
+        form = await _form(request)
+        _csrf(request, identity, form)
+        review_held_response(
+            request.app.state.session_factory,
+            response_id=response_id,
+            reviewer_id=identity.user_id,
+            decision=form.get("decision", ""),
+            reason_code=form.get("reason_code", ""),
+            note=form.get("note", ""),
+        )
+        return RedirectResponse("/admin/response-reviews?notice=review_saved", status_code=303)
 
     @app.get("/business", response_class=HTMLResponse)
     def business_home(request: Request):

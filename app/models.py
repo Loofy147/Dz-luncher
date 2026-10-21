@@ -151,6 +151,29 @@ class SurveyResponse(Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
 
 
+class ResponseReview(Base):
+    """One final human decision for a response held by automatic quality signals."""
+
+    __tablename__ = "response_reviews"
+    __table_args__ = (
+        UniqueConstraint("response_id", name="uq_response_review_response"),
+        CheckConstraint("decision in ('accept', 'reject')", name="ck_response_review_decision"),
+        CheckConstraint(
+            "reason_code in ('valid_response', 'ineligible', 'unusable_response', 'confirmed_duplicate', 'policy_violation', 'other')",
+            name="ck_response_review_reason",
+        ),
+        Index("ix_response_reviews_reviewer_created", "reviewer_user_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    response_id: Mapped[str] = mapped_column(ForeignKey("survey_responses.id", ondelete="CASCADE"), nullable=False)
+    reviewer_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decision: Mapped[str] = mapped_column(String(10), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class RewardLedgerEntry(Base):
     __tablename__ = "reward_ledger"
     __table_args__ = (

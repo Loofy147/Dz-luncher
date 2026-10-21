@@ -21,6 +21,7 @@
         {% if user and user.role in ['business', 'admin'] %}<a href="/business">مساحة المشاريع</a>{% endif %}
         {% if user %}<a href="/privacy-requests">طلبات الخصوصية</a>{% endif %}
         {% if user and user.role == 'admin' %}<a href="/admin/privacy-requests">مراجعة الطلبات</a>{% endif %}
+        {% if user and user.role == 'admin' %}<a href="/admin/response-reviews">مراجعة الاستجابات</a>{% endif %}
         {% if user %}<a href="/rewards">مكافآتي</a>{% endif %}
       </nav>
       <div class="header-actions">

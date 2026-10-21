@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.models import (
-    AuditEvent, RewardLedgerEntry, RewardObligation, SurveyCampaign,
+    AuditEvent, RewardLedgerEntry, RewardObligation, ResponseReview, SurveyCampaign,
     SurveyResponse, SurveyVersion, User,
 )
 from app.security import hash_password, verify_password
@@ -609,13 +609,19 @@ def campaign_report(session_factory: sessionmaker, *, slug: str, owner_id: str) 
             SurveyResponse.survey_id == campaign.id, SurveyResponse.survey_version_id == version.version_id,
         ).order_by(SurveyResponse.submitted_at.asc())))
         rows: list[ProcessedResponse] = []
+        reviews = list(session.scalars(select(ResponseReview).where(
+            ResponseReview.response_id.in_([item.id for item in persisted])
+        ))) if persisted else []
+        review_by_response = {review.response_id: review for review in reviews}
         for item in persisted:
             response = Response(
                 submission_id=item.submission_id, participant_id=item.participant_id, device_id=None,
                 seconds=item.elapsed_seconds or 0, answers=_load(item.answers_json, {}), survey_version_id=version.version_id,
             )
+            review = review_by_response.get(item.id)
+            report_status = "review_rejected" if item.status == "hold" and review and review.decision == "reject" else item.status
             rows.append(ProcessedResponse(
-                response=response, status=item.status, signals=tuple(_load(item.signals_json, [])),
+                response=response, status=report_status, signals=tuple(_load(item.signals_json, [])),
                 review_groups=tuple(_load(item.review_groups_json, [])), errors=tuple(_load(item.errors_json, [])),
                 normalized_answers=_load(item.answers_json, {}),
             ))
@@ -685,6 +691,16 @@ def response_status_counts(session_factory: sessionmaker, slug: str, owner_id: s
         campaign = _campaign_by_slug(session, slug)
         if campaign.owner_id != owner_id:
             raise ServiceError("لا تملك صلاحية الاطلاع على هذه النتائج.", 403, "owner_required")
-        rows = session.scalars(select(SurveyResponse.status).where(SurveyResponse.survey_id == campaign.id))
-        counts = Counter(rows)
-        return {status: counts.get(status, 0) for status in ("accepted", "accepted_flagged", "hold", "screened_out", "invalid", "quota_full", "excluded_duplicate")}
+        rows = list(session.scalars(select(SurveyResponse).where(SurveyResponse.survey_id == campaign.id)))
+        reviews = list(session.scalars(select(ResponseReview).join(SurveyResponse).where(
+            SurveyResponse.survey_id == campaign.id,
+        )))
+        rejected_ids = {review.response_id for review in reviews if review.decision == "reject"}
+        counts = Counter(
+            "review_rejected" if row.status == "hold" and row.id in rejected_ids else row.status
+            for row in rows
+        )
+        return {status: counts.get(status, 0) for status in (
+            "accepted", "accepted_flagged", "hold", "review_rejected",
+            "screened_out", "invalid", "quota_full", "excluded_duplicate",
+        )}
