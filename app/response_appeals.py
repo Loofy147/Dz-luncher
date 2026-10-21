@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
 from app.models import (
-    AuditEvent, RewardLedgerEntry, RewardObligation, ResponseAppeal,
+    RewardLedgerEntry, RewardObligation, ResponseAppeal,
     ResponseReview, SurveyCampaign, SurveyResponse, SurveyVersion, User,
 )
 from app.services import ServiceError, _audit
