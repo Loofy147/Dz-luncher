@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.db import initialize_schema, make_engine, make_session_factory
 from app.main import create_app
-from app.models import RewardLedgerEntry, RewardObligation, ResponseAppeal, ResponseReview, SurveyResponse, User
+from app.models import Notification, RewardLedgerEntry, RewardObligation, ResponseAppeal, ResponseReview, SurveyResponse, User
 from app.response_moderation import review_held_response
 from app.services import ServiceError, campaign_report, create_draft, fund_campaign, publish_campaign, register_user, submit_response
 
@@ -77,7 +77,7 @@ def _appeal(client, csrf, response_id):
 
 
 def test_participant_can_appeal_only_own_final_rejection_once(tmp_path, monkeypatch):
-    engine, factory, app, _, participant, other, _, _, response_id = _setup(tmp_path, monkeypatch)
+    engine, factory, app, _, participant, other, admin, _, response_id = _setup(tmp_path, monkeypatch)
     client, other_client = TestClient(app), TestClient(app)
     try:
         csrf = _login(client, participant.email, "/my-responses")
@@ -87,6 +87,11 @@ def test_participant_can_appeal_only_own_final_rejection_once(tmp_path, monkeypa
         }, follow_redirects=False)
         assert foreign.status_code == 404
         _appeal(client, csrf, response_id)
+        with factory() as session:
+            owner_events = list(session.scalars(select(Notification).where(Notification.user_id == participant.id)))
+            admin_events = list(session.scalars(select(Notification).where(Notification.user_id == admin.id)))
+            assert any(item.event_type == "response.hold" for item in owner_events)
+            assert any(item.event_type == "response.appeal.submitted" for item in admin_events)
         history = client.get("/my-responses")
         assert "اعتراض قيد المراجعة" in history.text
         replay = client.post(f"/my-responses/{response_id}/appeal", data={
@@ -132,6 +137,8 @@ def test_overturning_appeal_restores_accepted_state_and_reserves_reward_once(tmp
             assert len([entry for entry in entries if entry.event_type == "reward_reserved"]) == 1
             assert sum(entry.available_delta_dzd for entry in entries) == 10
             assert sum(entry.obligated_delta_dzd for entry in entries) == 10
+            owner_events = list(session.scalars(select(Notification).where(Notification.user_id == participant.id)))
+            assert any(item.event_type == "response.appeal.overturned" for item in owner_events)
         report = campaign_report(factory, slug=campaign.slug, owner_id=owner.id)
         assert report["accepted_n"] == 1
         assert report["sample_flow"]["accepted_flagged"] == 1
@@ -169,6 +176,8 @@ def test_upholding_appeal_does_not_create_reward_and_keeps_rejection_in_report(t
             assert appeal is not None and appeal.status == "upheld"
             assert response is not None and response.status == "hold"
             assert not obligations
+            owner_events = list(session.scalars(select(Notification).where(Notification.user_id == participant.id)))
+            assert any(item.event_type == "response.appeal.upheld" for item in owner_events)
         report = campaign_report(factory, slug=campaign.slug, owner_id=owner.id)
         assert report["accepted_n"] == 0
         assert report["sample_flow"]["review_rejected"] == 1

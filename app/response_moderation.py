@@ -14,6 +14,7 @@ from app.models import (
     SurveyResponse, SurveyVersion, User,
 )
 from app.services import ServiceError, _audit
+from app.notifications import add_notification
 from validation_core import ACCEPTED_STATUSES, survey_from_dict
 
 REVIEW_REASONS = {
@@ -190,6 +191,20 @@ def review_held_response(
             reason_code=reason_code,
             note=note,
         ))
+        if decision == "accept":
+            add_notification(
+                session, user_id=response.participant_id, event_type="response.review.accept",
+                title="قُبلت الاستجابة بعد المراجعة البشرية",
+                body="تم قبول الاستجابة بعد المراجعة الثانية. راجع سجل ردودك وسجل المكافآت عند انطباق الشروط.",
+                target_path="/my-responses",
+            )
+        else:
+            add_notification(
+                session, user_id=response.participant_id, event_type="response.review.reject",
+                title="تقرر رفض الاستجابة بعد المراجعة البشرية",
+                body="سُجل قرار مراجعة بشرية. يمكنك قراءة الحالة وتقديم اعتراض واحد من صفحة ردودي.",
+                target_path="/my-responses",
+            )
         _audit(session, reviewer_id, f"response.review.{decision}", "response", response.id, {
             "decision": decision,
             "reason_code": reason_code,

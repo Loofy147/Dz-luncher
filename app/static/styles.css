@@ -434,3 +434,21 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 8px; }
   .participant-response-head, .appeal-adjudication-head { gap: 8px; }
   .appeal-adjudication-form .button, .appeal-form-details .button { width: 100%; }
 }
+
+
+/* Durable in-app notifications */
+.notification-list { max-width: 1040px; margin: 0 auto; display: grid; gap: 11px; }
+.notification-card { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.notification-unread { border-inline-start: 4px solid #6ba58b; background: #fcfefb; }
+.notification-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--green-pale); color: var(--green); font-size: 13px; font-weight: 800; }
+.notification-content { min-width: 0; }
+.notification-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.notification-top h2 { margin: 0; font-size: 14px; }
+.notification-date, .notification-read-label { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.notification-content p { margin: 8px 0; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.notification-content .text-link { font-size: 10px; }
+.notification-read-form { align-self: center; }
+@media (max-width: 650px) {
+  .notification-card { grid-template-columns: 30px minmax(0,1fr); padding: 14px; }
+  .notification-read-form, .notification-read-label { grid-column: 2; justify-self: start; }
+}

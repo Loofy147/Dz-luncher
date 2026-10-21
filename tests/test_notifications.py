@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -23,7 +22,7 @@ def _setup(tmp_path, monkeypatch):
     second = register_user(factory, email="notify-second@example.dz", password="correct-horse-battery", display_name="المستخدم الثاني", role="participant")
     with factory() as session, session.begin():
         own = Notification(
-            id="notify-own-000000000000000000000001",
+            id="a".ljust(32, "a"),
             user_id=first.id,
             event_type="response.hold",
             title="استجابتك قيد المراجعة",
@@ -31,7 +30,7 @@ def _setup(tmp_path, monkeypatch):
             target_path="/my-responses",
         )
         foreign = Notification(
-            id="notify-foreign-00000000000000000001",
+            id="b".ljust(32, "b"),
             user_id=second.id,
             event_type="response.accepted",
             title="إشعار خاص بحساب آخر",
@@ -54,7 +53,7 @@ def _login(client: TestClient, email: str) -> str:
 
 
 def test_notifications_are_private_and_mark_as_read_is_durable(tmp_path, monkeypatch):
-    engine, factory, app, first, second, own_id, foreign_id = _setup(tmp_path, monkeypatch)
+    engine, factory, app, first, second, own_id, _ = _setup(tmp_path, monkeypatch)
     client = TestClient(app)
     other_client = TestClient(app)
     try:

@@ -20,6 +20,7 @@ from app.models import (
     SurveyResponse, SurveyVersion, User,
 )
 from app.security import hash_password, verify_password
+from app.notifications import add_notification
 from validation_core import (
     ACCEPTED_STATUSES, Hypothesis, ProcessedResponse, Response,
     build_report, process_responses, pseudo_id, response_from_dict, survey_from_dict,
@@ -428,6 +429,12 @@ def submit_response(
             session.add(duplicate)
             session.flush()
             _audit(session, None, "response.duplicate_excluded", "response", duplicate.id, {"survey_id": campaign.id})
+            add_notification(
+                session, user_id=participant_id, event_type="response.excluded_duplicate",
+                title="لم تُحتسب المشاركة المكررة",
+                body="سُجلت هذه المحاولة كمكررة. راجع سجل ردودك لمعرفة حالة الاستجابة السابقة.",
+                target_path="/my-responses",
+            )
             return {"response_id": duplicate.id, "status": duplicate.status, "idempotent_replay": False, "reward_status": "not_earned", "reward_amount_dzd": 0}
 
         accepted_count = session.scalar(select(func.count()).select_from(SurveyResponse).where(
@@ -523,6 +530,22 @@ def submit_response(
             ))
             reward_status, reward_amount = "pending", amount
         _audit(session, participant_id, "response.submitted", "response", record.id, {"survey_id": campaign.id, "status": status, "reward_status": reward_status})
+        notification_messages = {
+            "accepted": ("استجابتك مقبولة", "تم قبول الاستجابة. راجع سجل ردودك وسجل المكافآت عند انطباق الشروط."),
+            "accepted_flagged": ("استجابتك مقبولة بعد فحص الجودة", "قُبلت الاستجابة مع إشارة جودة للمراجعة التحليلية؛ لا يعني ذلك رفضاً."),
+            "hold": ("استجابتك قيد المراجعة", "وصلت الاستجابة إلى مراجعة بشرية. الإشارات الآلية ليست حكماً نهائياً، وستظهر الحالة هنا."),
+            "screened_out": ("انتهى التأهيل لهذه الدراسة", "لم تنطبق معايير التأهيل المعلنة على هذه المشاركة."),
+            "invalid": ("تعذر قبول الإجابة", "لم تُقبل الإجابة بسبب خطأ في البيانات. راجع سجل ردودك وتعليمات الدراسة."),
+            "quota_full": ("اكتملت حصة الفئة", "اكتملت الحصة المحددة لهذه الفئة؛ لم تُحتسب الإجابة كمشاركة مقبولة."),
+            "excluded_duplicate": ("لم تُحتسب المشاركة المكررة", "يُسمح بمشاركة واحدة فقط في الدراسة؛ راجع حالة الاستجابة السابقة."),
+        }
+        notification_title, notification_body = notification_messages.get(
+            status, ("تم تحديث حالة الاستجابة", "راجع سجل ردودك للاطلاع على الحالة الحالية."),
+        )
+        add_notification(
+            session, user_id=participant_id, event_type=f"response.{status}",
+            title=notification_title, body=notification_body, target_path="/my-responses",
+        )
         return {"response_id": record.id, "status": status, "idempotent_replay": False, "reward_status": reward_status, "reward_amount_dzd": reward_amount}
 
 
@@ -589,6 +612,12 @@ def mark_reward_paid(session_factory: sessionmaker, *, obligation_id: str, refer
         obligation.status = "paid"
         obligation.payment_reference = reference
         obligation.paid_at = _now()
+        add_notification(
+            session, user_id=obligation.participant_id, event_type="reward.paid",
+            title="تمت مطابقة تسوية المكافأة",
+            body="سُجلت التسوية بموجب مرجع خارجي من المشغّل. راجع سجل المكافآت للتفاصيل.",
+            target_path="/rewards",
+        )
         _audit(session, actor_user_id, "reward.marked_paid", "reward", obligation.id, {"reference": reference, "amount_dzd": obligation.amount_dzd, "operator_label": (operator_label or "").strip()[:120]})
         session.flush()
         return {"obligation_id": obligation.id, "status": "paid", "idempotent_replay": False}

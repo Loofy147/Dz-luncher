@@ -24,6 +24,7 @@ from app.response_moderation import list_response_review_queue, review_held_resp
 from app.response_appeals import (
     create_response_appeal, list_participant_responses, list_response_appeal_queue, resolve_response_appeal,
 )
+from app.notifications import list_user_notifications, mark_notification_read
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -616,6 +617,35 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
             reason=form.get("reason", ""),
         )
         return RedirectResponse("/my-responses?notice=appeal_submitted", status_code=303)
+
+    @app.get("/notifications", response_class=HTMLResponse)
+    def notifications_page(request: Request):
+        identity = _require_identity(request)
+        data = list_user_notifications(request.app.state.session_factory, user_id=identity.user_id)
+        notices = {
+            "notification_read": "تم تحديث حالة الإشعار إلى مقروء.",
+        }
+        return _render(request, "notifications.html", {
+            "title": "الإشعارات",
+            "notifications": data["items"],
+            "unread_count": data["unread_count"],
+            "notice": _notice(request, notices),
+        })
+
+    @app.post("/notifications/{notification_id}/read")
+    async def mark_notification_read_action(request: Request, notification_id: str):
+        identity = _require_identity(request)
+        form = await _form(request)
+        _csrf(request, identity, form)
+        try:
+            mark_notification_read(
+                request.app.state.session_factory,
+                notification_id=notification_id,
+                user_id=identity.user_id,
+            )
+        except LookupError as exc:
+            raise ServiceError("الإشعار غير موجود.", 404, "notification_not_found") from exc
+        return RedirectResponse("/notifications?notice=notification_read", status_code=303)
 
     @app.get("/rewards", response_class=HTMLResponse)
     def rewards_page(request: Request):

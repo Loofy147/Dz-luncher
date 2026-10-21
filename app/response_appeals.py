@@ -14,6 +14,7 @@ from app.models import (
     RewardLedgerEntry, RewardObligation, ResponseAppeal,
     ResponseReview, SurveyCampaign, SurveyResponse, SurveyVersion, User,
 )
+from app.notifications import add_notification
 from app.services import ServiceError, _audit
 from validation_core import ACCEPTED_STATUSES, survey_from_dict
 
@@ -165,6 +166,13 @@ def create_response_appeal(
             "response_id": response.id,
             "reason_length": len(reason),
         })
+        for admin_id in session.scalars(select(User.id).where(User.role == "admin")):
+            add_notification(
+                session, user_id=admin_id, event_type="response.appeal.submitted",
+                title="اعتراض جديد ينتظر التحكيم",
+                body="وصل اعتراض على قرار رفض سابق. راجعه من قائمة اعتراضات الاستجابات.",
+                target_path="/admin/response-appeals",
+            )
     return {"id": appeal_id, "response_id": response_id, "status": "open", "status_label": APPEAL_STATUSES["open"]}
 
 
@@ -331,6 +339,20 @@ def resolve_response_appeal(
             "resolution_note_length": len(resolution_note),
             "reward_reserved": reward_reserved,
         })
+        if decision == "overturn":
+            add_notification(
+                session, user_id=response.participant_id, event_type="response.appeal.overturned",
+                title="أُلغي رفض الاستجابة بعد الاعتراض",
+                body="قبلت المراجعة الثانية الاستجابة. راجع سجل ردودك؛ إذا كانت الدراسة تقدم مكافأة فستظهر حالة الاستحقاق في سجل المكافآت.",
+                target_path="/my-responses",
+            )
+        else:
+            add_notification(
+                session, user_id=response.participant_id, event_type="response.appeal.upheld",
+                title="حُسم الاعتراض وبقي قرار الرفض",
+                body="انتهت المراجعة الثانية إلى تثبيت القرار السابق. يمكنك مراجعة ملاحظة الحسم في سجل ردودك.",
+                target_path="/my-responses",
+            )
         session.flush()
         return {
             "appeal_id": appeal.id,

@@ -61,15 +61,15 @@ jobs:
         run: alembic upgrade head
       - name: Confirm migrations are repeatable
         run: alembic upgrade head
-      - name: Verify production tables exist
+      - name: Verify all required domain and operational tables exist
         run: |
           python - <<'PY'
           from sqlalchemy import inspect
           from app.db import make_engine
-          required = {"users", "survey_campaigns", "survey_versions", "survey_responses", "reward_ledger", "audit_events"}
+          required = {"users", "auth_sessions", "auth_action_tokens", "survey_campaigns", "survey_versions", "survey_responses", "reward_ledger", "reward_obligations", "audit_events", "data_subject_requests", "response_reviews", "response_appeals", "notifications"}
           present = set(inspect(make_engine()).get_table_names())
           missing = sorted(required - present)
           if missing:
               raise SystemExit(f"Missing migrated tables: {missing}")
-          print(f"PostgreSQL migration verified; found {len(required)} required tables.")
+          print(f"PostgreSQL migration verified; found {len(required)} required domain and operational tables.")
           PY

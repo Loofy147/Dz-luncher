@@ -200,6 +200,25 @@ class ResponseAppeal(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class Notification(Base):
+    """Private in-app notification with durable read state."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_user_created", "user_id", "created_at"),
+        Index("ix_notifications_user_read_created", "user_id", "read_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    body: Mapped[str] = mapped_column(String(1000), nullable=False)
+    target_path: Mapped[str] = mapped_column(String(300), nullable=False, default="/")
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class RewardLedgerEntry(Base):
     __tablename__ = "reward_ledger"
     __table_args__ = (
