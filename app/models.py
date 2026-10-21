@@ -26,6 +26,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="participant")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AuthSession(Base):
@@ -36,6 +37,23 @@ class AuthSession(Base):
     csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
     expires_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
+class AuthActionToken(Base):
+    """Hashed, purpose-bound, one-time tokens for email verification and recovery."""
+
+    __tablename__ = "auth_action_tokens"
+    __table_args__ = (
+        CheckConstraint("purpose in ('verify_email', 'reset_password')", name="ck_auth_action_token_purpose"),
+        Index("ix_auth_action_tokens_user_purpose_created", "user_id", "purpose", "created_at"),
+        Index("ix_auth_action_tokens_expires_at", "expires_at"),
+    )
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(24), nullable=False)
+    expires_at: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class SurveyCampaign(Base):

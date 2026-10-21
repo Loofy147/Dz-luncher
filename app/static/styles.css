@@ -346,3 +346,9 @@ progress::-moz-progress-bar { background: var(--green); border-radius: 8px; }
   .template-card { padding: 16px; }
   .template-selected-detail { padding: 17px; }
 }
+
+
+/* Account verification and recovery affordances */
+.auth-notice { padding: 12px 14px; margin: 0 0 17px; border: 1px solid #d1e3d5; border-radius: 11px; background: #f1f7f0; color: var(--green); font-size: 11px; line-height: 1.8; }
+.auth-form .switch-auth { line-height: 2.1; }
+.auth-form .switch-auth a { display: inline-block; margin-inline: 3px; }

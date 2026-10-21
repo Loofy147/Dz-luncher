@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -13,6 +14,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 
 from app.db import initialize_schema, make_engine, make_session_factory
+from app.auth_flows import (
+    EMAIL_VERIFICATION_TTL_SECONDS, PASSWORD_RESET_TTL_SECONDS, email_verification_required,
+    issue_auth_action_token, reset_password_with_token, verify_email_token,
+)
+from app.email_delivery import send_auth_email, validate_email_delivery_configuration
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -26,6 +32,7 @@ from app.services import (
 from app.survey_templates import get_survey_template, list_survey_templates
 
 ROOT = Path(__file__).resolve().parent.parent
+LOGGER = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
 
@@ -64,6 +71,50 @@ def _render(request: Request, name: str, context: dict | None = None, status_cod
     return TEMPLATES.TemplateResponse(request=request, name=name, context=values, status_code=status_code)
 
 
+def _auth_action_url(request: Request, path: str, token: str) -> str:
+    configured = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    production = os.getenv("APP_ENV", "development").lower() == "production"
+    if production and (not configured or not configured.startswith("https://")):
+        raise RuntimeError("PUBLIC_BASE_URL must be configured as an HTTPS origin in production")
+    base = configured or str(request.base_url).rstrip("/")
+    return f"{base}{path}?token={quote(token, safe='')}"
+
+
+def _send_auth_link(request: Request, *, recipient: str, purpose: str, token: str) -> None:
+    if purpose == "verify_email":
+        subject = "تأكيد البريد الإلكتروني — Dz-luncher"
+        link = _auth_action_url(request, "/verify-email", token)
+        body = (
+            "مرحباً،\n\n"
+            "استخدم الرابط التالي لتأكيد عنوان بريدك الإلكتروني في Dz-luncher. "
+            "صلاحية الرابط 24 ساعة، ويُستخدم مرة واحدة فقط.\n\n"
+            f"{link}\n\n"
+            "إذا لم تنشئ هذا الحساب، فتجاهل هذه الرسالة."
+        )
+    elif purpose == "reset_password":
+        subject = "إعادة تعيين كلمة المرور — Dz-luncher"
+        link = _auth_action_url(request, "/reset-password", token)
+        body = (
+            "مرحباً،\n\n"
+            "طُلب إعادة تعيين كلمة المرور لحسابك في Dz-luncher. "
+            "صلاحية الرابط 30 دقيقة، ويُستخدم مرة واحدة فقط.\n\n"
+            f"{link}\n\n"
+            "إذا لم تطلب ذلك، فتجاهل الرسالة؛ لم تتغير كلمة مرورك."
+        )
+    else:
+        raise ValueError("unsupported_auth_email_purpose")
+    try:
+        request.app.state.mail_sender(recipient, subject, body)
+    except Exception:
+        # Keep public responses generic and never log the raw token or message body.
+        domain = recipient.rsplit("@", 1)[-1][:100] if "@" in recipient else "invalid"
+        LOGGER.exception("Auth email delivery failed purpose=%s recipient_domain=%s", purpose, domain)
+
+
+def _notice(request: Request, notices: dict[str, str]) -> str:
+    return notices.get(request.query_params.get("notice", ""), "")
+
+
 def _set_session_cookie(response: Response, value: str) -> None:
     response.set_cookie(
         SESSION_COOKIE, value, max_age=SESSION_TTL_SECONDS, httponly=True,
@@ -72,7 +123,7 @@ def _set_session_cookie(response: Response, value: str) -> None:
     )
 
 
-def create_app(*, engine=None, session_factory=None, initialize: bool = True) -> FastAPI:
+def create_app(*, engine=None, session_factory=None, initialize: bool = True, mail_sender=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         if application.state.initialize_schema and os.getenv("APP_ENV", "development").lower() != "production":
@@ -82,6 +133,12 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
             from app.services import _pseudonym_secret
             session_secret()
             _pseudonym_secret()
+        if email_verification_required() and not application.state.custom_mail_sender:
+            validate_email_delivery_configuration()
+        if os.getenv("APP_ENV", "development").lower() == "production":
+            public_base_url = os.getenv("PUBLIC_BASE_URL", "").strip()
+            if not public_base_url.startswith("https://"):
+                raise RuntimeError("PUBLIC_BASE_URL must be configured as an HTTPS origin in production")
         yield
 
     app = FastAPI(title="Dz-luncher | منصة الاستبيانات والتحقق", docs_url=None, redoc_url=None, lifespan=lifespan)
@@ -92,6 +149,8 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.initialize_schema = initialize
+    app.state.mail_sender = mail_sender or send_auth_email
+    app.state.custom_mail_sender = mail_sender is not None
     app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 
     @app.middleware("http")
@@ -151,6 +210,14 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
         form = await _form(request)
         user = register_user(request.app.state.session_factory, email=form.get("email", ""), password=form.get("password", ""),
                              display_name=form.get("display_name", ""), role=form.get("role", "participant"))
+        if email_verification_required():
+            token = issue_auth_action_token(
+                request.app.state.session_factory, user_id=user.id, purpose="verify_email",
+                ttl_seconds=EMAIL_VERIFICATION_TTL_SECONDS,
+            )
+            if token:
+                _send_auth_link(request, recipient=user.email, purpose="verify_email", token=token)
+            return RedirectResponse("/login?notice=verification_sent", status_code=303)
         signed, _csrf_token = create_session(request.app.state.session_factory, user)
         target = "/business" if user.role in {"business", "admin"} else "/"
         response = RedirectResponse(target, status_code=303)
@@ -161,7 +228,14 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
     def login_page(request: Request):
         if _identity(request):
             return RedirectResponse("/", status_code=303)
-        return _render(request, "auth.html", {"mode": "login", "title": "تسجيل الدخول"})
+        notices = {
+            "verification_sent": "إذا كان البريد صالحاً، فستصلك تعليمات تأكيد الحساب. افحص صندوق الرسائل والبريد غير المرغوب فيه.",
+            "email_verified": "تم تأكيد البريد الإلكتروني. يمكنك تسجيل الدخول الآن.",
+            "password_reset": "تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.",
+        }
+        return _render(request, "auth.html", {
+            "mode": "login", "title": "تسجيل الدخول", "notice": _notice(request, notices),
+        })
 
     @app.post("/login")
     async def login_action(request: Request):
@@ -169,11 +243,97 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True) ->
             raise ServiceError("أنت مسجّل الدخول بالفعل.", 409, "already_authenticated")
         form = await _form(request)
         user = authenticate_user(request.app.state.session_factory, email=form.get("email", ""), password=form.get("password", ""))
+        if email_verification_required() and user.email_verified_at is None:
+            raise ServiceError("أكد بريدك الإلكتروني قبل تسجيل الدخول. يمكنك طلب إرسال رابط تأكيد جديد.", 403, "email_not_verified")
         signed, _csrf_token = create_session(request.app.state.session_factory, user)
         target = "/business" if user.role in {"business", "admin"} else "/"
         response = RedirectResponse(target, status_code=303)
         _set_session_cookie(response, signed)
         return response
+
+    @app.get("/verify-email", response_class=HTMLResponse)
+    def verify_email_page(request: Request, token: str = ""):
+        return _render(request, "auth_action.html", {
+            "title": "تأكيد البريد الإلكتروني", "mode": "verify", "token": token,
+        })
+
+    @app.post("/verify-email")
+    async def verify_email_action(request: Request):
+        form = await _form(request)
+        if not verify_email_token(request.app.state.session_factory, form.get("token", "")):
+            raise ServiceError("رابط التأكيد غير صالح أو منتهي الصلاحية. اطلب رابطاً جديداً.", 400, "invalid_or_expired_token")
+        return RedirectResponse("/login?notice=email_verified", status_code=303)
+
+    @app.get("/resend-verification", response_class=HTMLResponse)
+    def resend_verification_page(request: Request):
+        return _render(request, "auth.html", {
+            "mode": "resend_verification", "title": "إعادة إرسال رابط التأكيد",
+            "notice": _notice(request, {"verification_sent": "إذا كان الحساب يحتاج إلى تأكيد، فستصلك رسالة إذا كان ذلك ممكناً."}),
+        })
+
+    @app.post("/resend-verification")
+    async def resend_verification_action(request: Request):
+        form = await _form(request)
+        email = form.get("email", "").strip().lower()
+        if len(email) <= 254 and "@" in email:
+            with request.app.state.session_factory() as session:
+                from app.models import User
+                user = session.scalar(select(User).where(User.email == email))
+            if user is not None and user.email_verified_at is None:
+                token = issue_auth_action_token(
+                    request.app.state.session_factory, user_id=user.id, purpose="verify_email",
+                    ttl_seconds=EMAIL_VERIFICATION_TTL_SECONDS,
+                )
+                if token:
+                    _send_auth_link(request, recipient=user.email, purpose="verify_email", token=token)
+        return RedirectResponse("/resend-verification?notice=verification_sent", status_code=303)
+
+    @app.get("/forgot-password", response_class=HTMLResponse)
+    def forgot_password_page(request: Request):
+        return _render(request, "auth.html", {
+            "mode": "forgot_password", "title": "استعادة كلمة المرور",
+            "notice": _notice(request, {"if_account_exists": "إذا كان البريد مرتبطاً بحساب موثّق، فستصلك رسالة بخطوات إعادة التعيين."}),
+        })
+
+    @app.post("/forgot-password")
+    async def forgot_password_action(request: Request):
+        form = await _form(request)
+        email = form.get("email", "").strip().lower()
+        if len(email) <= 254 and "@" in email:
+            with request.app.state.session_factory() as session:
+                from app.models import User
+                user = session.scalar(select(User).where(User.email == email))
+            if user is not None and user.email_verified_at is not None:
+                token = issue_auth_action_token(
+                    request.app.state.session_factory, user_id=user.id, purpose="reset_password",
+                    ttl_seconds=PASSWORD_RESET_TTL_SECONDS,
+                )
+                if token:
+                    _send_auth_link(request, recipient=user.email, purpose="reset_password", token=token)
+        return RedirectResponse("/forgot-password?notice=if_account_exists", status_code=303)
+
+    @app.get("/reset-password", response_class=HTMLResponse)
+    def reset_password_page(request: Request, token: str = ""):
+        return _render(request, "auth_action.html", {
+            "title": "إعادة تعيين كلمة المرور", "mode": "reset", "token": token,
+        })
+
+    @app.post("/reset-password")
+    async def reset_password_action(request: Request):
+        form = await _form(request)
+        password = form.get("password", "")
+        confirmation = form.get("password_confirm", "")
+        if password != confirmation:
+            raise ServiceError("كلمتا المرور غير متطابقتين.", 422, "password_confirmation_mismatch")
+        try:
+            updated = reset_password_with_token(
+                request.app.state.session_factory, form.get("token", ""), password,
+            )
+        except ValueError as exc:
+            raise ServiceError(str(exc), 422, "invalid_password") from exc
+        if not updated:
+            raise ServiceError("رابط إعادة التعيين غير صالح أو منتهي الصلاحية. اطلب رابطاً جديداً.", 400, "invalid_or_expired_token")
+        return RedirectResponse("/login?notice=password_reset", status_code=303)
 
     @app.post("/logout")
     async def logout_action(request: Request):

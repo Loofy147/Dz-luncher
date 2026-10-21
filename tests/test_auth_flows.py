@@ -98,7 +98,7 @@ def test_registration_requires_verified_email_before_it_issues_a_session(tmp_pat
 def test_password_reset_is_generic_single_use_and_revokes_all_existing_sessions(tmp_path, monkeypatch):
     client, engine, factory, sent = _make_client(tmp_path, monkeypatch)
     try:
-        registered = client.post("/register", data={
+        client.post("/register", data={
             "display_name": "صاحب مشروع",
             "email": "owner@example.dz",
             "password": "correct-horse-battery",
@@ -193,3 +193,11 @@ def test_verification_token_expiry_fails_closed(tmp_path, monkeypatch):
     finally:
         client.close()
         engine.dispose()
+
+
+def test_production_cannot_disable_email_verification(monkeypatch):
+    from app.auth_flows import email_verification_required
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("EMAIL_VERIFICATION_REQUIRED", "false")
+    assert email_verification_required() is True
