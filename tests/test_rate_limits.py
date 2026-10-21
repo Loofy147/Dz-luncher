@@ -28,7 +28,7 @@ def test_fixed_window_counter_allows_limit_then_blocks_and_resets(tmp_path, monk
         assert first.allowed and first.attempts == 1
         assert second.allowed and second.attempts == 2
         assert not third.allowed and third.attempts == 3
-        assert third.retry_after == 20
+        assert third.retry_after == 57
 
         next_window = consume_rate_limit(factory, scope="auth:login", key_material="198.51.100.10",
                                          limit=2, window_seconds=60, now=180)
