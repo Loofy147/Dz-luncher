@@ -28,11 +28,18 @@ from validation_core import (
 
 
 class ServiceError(Exception):
-    def __init__(self, message: str, status_code: int = 400, code: str = "invalid_request"):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 400,
+        code: str = "invalid_request",
+        headers: Mapping[str, str] | None = None,
+    ):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.code = code
+        self.headers = dict(headers or {})
 
 
 def _now() -> datetime:

@@ -1,9 +1,10 @@
-# Implementation Status — 2026-10-20
+# Implementation Status — 2026-10-21
 
 ## Implemented in this MVP foundation
 
 - Arabic-first RTL server-rendered web app with FastAPI/Jinja, registration/login, database-backed sessions and CSRF protection.
 - Email verification and password-reset flows: purpose-bound random tokens stored as SHA-256 digests, 24-hour verification and 30-minute recovery expiry, one-time consumption, resend cooldown, privacy-preserving generic recovery responses, password-reset session revocation, audit events, and SMTP TLS configuration gates.
+- Database-backed fixed-window rate limits protect registration (5/hour), login (10/15 minutes), password recovery (5/hour), verification resends (3/hour), password reset (10/15 minutes), and email-token verification (20/15 minutes). PostgreSQL and SQLite counters use atomic upserts; only HMAC fingerprints are stored, and Retry-After is returned when a limit is exceeded. These limits cover authentication endpoints only, not the entire application.
 - Authenticated privacy-request intake for access/correction/deletion/objection/other; requesters can view only their own records. Admin-only status triage supports audited state transitions, mandatory resolution notes for terminal decisions, and keeps free-text request detail out of audit metadata. Completion is an operator assertion, not an automatic erasure action.
 - Admin-only human review queue for responses held by quality signals, with a one-decision record, reason code, reviewer note, and minimal audit metadata. Acceptance is transactional with quota/campaign-cap rechecks and reward reservation; rejected holds remain distinguishable in reports without a destructive or misleading database status rewrite.
 - Participant response history and single-appeal flow for a human-rejected response, plus a separate admin second-level adjudication queue. Appeal overturning preserves the original rejection record, rechecks limits/quotas/funding, reserves a reward atomically when due, and updates sample flow; upholding leaves the response excluded and does not create a reward.
@@ -29,4 +30,4 @@
 
 ## Release gates
 
-Do not collect sensitive or unnecessary data. Do not market declared preferences as proven demand. Do not state that a reward was paid unless an external payment has actually completed and its reference has been checked. Configure independent production secrets, PostgreSQL, TLS, trusted proxy handling, rate limiting, logs/alerts, backups, and a privacy review before launch.
+Do not collect sensitive or unnecessary data. Do not market declared preferences as proven demand. Do not state that a reward was paid unless an external payment has actually completed and its reference has been checked. Configure independent production secrets, PostgreSQL, TLS, trusted proxy handling, application-wide rate limits (survey submissions, exports, rewards and webhook ingress remain uncovered), logs/alerts, backups, and a privacy review before launch.

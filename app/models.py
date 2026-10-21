@@ -56,6 +56,21 @@ class AuthActionToken(Base):
     created_at: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class AuthRateLimitBucket(Base):
+    """Opaque client fingerprints and per-window request counters."""
+
+    __tablename__ = "auth_rate_limit_buckets"
+    __table_args__ = (
+        CheckConstraint("hits >= 1", name="ck_auth_rate_limit_hits_positive"),
+        Index("ix_auth_rate_limit_buckets_updated_at", "updated_at"),
+    )
+
+    bucket_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    hits: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class DataSubjectRequest(Base):
     """Tracked intake record for a person's privacy-rights request."""
 

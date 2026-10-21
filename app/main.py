@@ -25,6 +25,7 @@ from app.response_appeals import (
     create_response_appeal, list_participant_responses, list_response_appeal_queue, resolve_response_appeal,
 )
 from app.notifications import list_user_notifications, mark_notification_read
+from app.rate_limits import enforce_auth_rate_limit
 from app.models import RewardLedgerEntry, SurveyCampaign, SurveyResponse
 from app.security import (
     SESSION_COOKIE, SESSION_TTL_SECONDS, SessionIdentity, create_session,
@@ -184,8 +185,18 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
     @app.exception_handler(ServiceError)
     async def service_error_handler(request: Request, exc: ServiceError):
         if request.url.path.startswith("/api/") or "application/json" in request.headers.get("accept", ""):
-            return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status_code)
-        return _render(request, "error.html", {"title": "تعذر إكمال العملية", "message": exc.message, "status_code": exc.status_code}, exc.status_code)
+            return JSONResponse(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status_code=exc.status_code,
+                headers=exc.headers or None,
+            )
+        response = _render(
+            request, "error.html",
+            {"title": "تعذر إكمال العملية", "message": exc.message, "status_code": exc.status_code},
+            exc.status_code,
+        )
+        response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(ValueError)
     async def value_error_handler(request: Request, exc: ValueError):
@@ -211,6 +222,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/register")
     async def register_action(request: Request):
+        enforce_auth_rate_limit(request, "register")
         if _identity(request):
             raise ServiceError("أنت مسجّل الدخول بالفعل.", 409, "already_authenticated")
         form = await _form(request)
@@ -245,6 +257,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/login")
     async def login_action(request: Request):
+        enforce_auth_rate_limit(request, "login")
         if _identity(request):
             raise ServiceError("أنت مسجّل الدخول بالفعل.", 409, "already_authenticated")
         form = await _form(request)
@@ -265,6 +278,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/verify-email")
     async def verify_email_action(request: Request):
+        enforce_auth_rate_limit(request, "verify_email")
         form = await _form(request)
         if not verify_email_token(request.app.state.session_factory, form.get("token", "")):
             raise ServiceError("رابط التأكيد غير صالح أو منتهي الصلاحية. اطلب رابطاً جديداً.", 400, "invalid_or_expired_token")
@@ -279,6 +293,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/resend-verification")
     async def resend_verification_action(request: Request):
+        enforce_auth_rate_limit(request, "resend_verification")
         form = await _form(request)
         email = form.get("email", "").strip().lower()
         if len(email) <= 254 and "@" in email:
@@ -303,6 +318,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/forgot-password")
     async def forgot_password_action(request: Request):
+        enforce_auth_rate_limit(request, "forgot_password")
         form = await _form(request)
         email = form.get("email", "").strip().lower()
         if len(email) <= 254 and "@" in email:
@@ -326,6 +342,7 @@ def create_app(*, engine=None, session_factory=None, initialize: bool = True, ma
 
     @app.post("/reset-password")
     async def reset_password_action(request: Request):
+        enforce_auth_rate_limit(request, "reset_password")
         form = await _form(request)
         password = form.get("password", "")
         confirmation = form.get("password_confirm", "")

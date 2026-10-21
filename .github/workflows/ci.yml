@@ -66,7 +66,7 @@ jobs:
           python - <<'PY'
           from sqlalchemy import inspect
           from app.db import make_engine
-          required = {"users", "auth_sessions", "auth_action_tokens", "survey_campaigns", "survey_versions", "survey_responses", "reward_ledger", "reward_obligations", "audit_events", "data_subject_requests", "response_reviews", "response_appeals", "notifications"}
+          required = {"users", "auth_sessions", "auth_action_tokens", "auth_rate_limit_buckets", "survey_campaigns", "survey_versions", "survey_responses", "reward_ledger", "reward_obligations", "audit_events", "data_subject_requests", "response_reviews", "response_appeals", "notifications"}
           present = set(inspect(make_engine()).get_table_names())
           missing = sorted(required - present)
           if missing:
