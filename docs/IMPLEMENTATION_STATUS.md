@@ -25,7 +25,7 @@
 - No integrated payment rail, banking link, automatic payout, escrow service, or financial licence determination.
 - Enterprise SSO, email/push delivery for event notifications, role invitations, and managed retention/deletion scheduler remain open. Privacy-request intake and audited operator triage exist, but they do not perform automatic account/data deletion or legal determinations.
 - No real Algerian participant pilot; quality weights and false-positive/false-negative rates are not calibrated against human-labelled data.
-- No independent security review, penetration test, load test, PostgreSQL race test in CI, or tested backup restoration.
+- No independent security review, penetration test, general load test, PostgreSQL campaign/reward race test, or tested backup restoration. PostgreSQL rate-counter concurrency is exercised in CI.
 - No legal conclusion on hosting jurisdiction, cross-border transfers, or campaign-specific lawful basis. These remain go-live gates.
 
 ## Release gates
