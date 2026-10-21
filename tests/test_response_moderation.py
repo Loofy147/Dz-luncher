@@ -134,10 +134,10 @@ def test_admin_accepting_held_response_reserves_reward_once_and_removes_it_from_
         with pytest.raises(ServiceError) as raised:
             # Only held responses with no completed review can enter the review transition.
             review_held_response(
-                factory, response_id=held["response_id"], reviewer_id=owner.id,
+                factory, response_id=held["response_id"], reviewer_id=admin.id,
                 decision="reject", reason_code="unusable_response", note="قرار مراجعة مكرر وغير قابل للتكرار",
             )
-        assert raised.value.code in {"response_not_held", "response_already_reviewed"}
+        assert raised.value.code == "response_already_reviewed"
     finally:
         client.close()
         engine.dispose()
