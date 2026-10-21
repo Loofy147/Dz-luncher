@@ -84,3 +84,64 @@ def test_rate_limit_rejects_invalid_policy_values(tmp_path, monkeypatch):
             raise AssertionError(f"invalid rate-limit configuration was accepted: {kwargs}")
     finally:
         engine.dispose()
+
+
+
+def test_forwarded_ip_header_is_ignored_unless_immediate_peer_is_trusted(tmp_path, monkeypatch):
+    from starlette.requests import Request
+    from app.rate_limits import _client_key
+
+    monkeypatch.setenv("RATE_LIMIT_TRUSTED_CLIENT_IP_HEADER", "x-real-ip")
+    monkeypatch.setenv("RATE_LIMIT_TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+    untrusted_peer = Request({
+        "type": "http",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/login",
+        "query_string": b"",
+        "headers": [(b"x-real-ip", b"198.51.100.99")],
+        "client": ("203.0.113.7", 50000),
+        "server": ("testserver", 80),
+    })
+    assert _client_key(untrusted_peer) == "203.0.113.7"
+
+
+def test_forwarded_ip_header_is_used_for_configured_trusted_proxy(tmp_path, monkeypatch):
+    from starlette.requests import Request
+    from app.rate_limits import _client_key
+
+    monkeypatch.setenv("RATE_LIMIT_TRUSTED_CLIENT_IP_HEADER", "x-real-ip")
+    monkeypatch.setenv("RATE_LIMIT_TRUSTED_PROXY_CIDRS", "10.0.0.0/8,192.0.2.0/24")
+    trusted_peer = Request({
+        "type": "http",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/login",
+        "query_string": b"",
+        "headers": [(b"x-real-ip", b"198.51.100.99")],
+        "client": ("10.12.0.4", 50000),
+        "server": ("testserver", 80),
+    })
+    assert _client_key(trusted_peer) == "198.51.100.99"
+
+
+def test_concurrent_sqlite_attempts_never_admit_more_than_limit(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    engine, factory = _factory(tmp_path, monkeypatch)
+    try:
+        def hit(_):
+            return consume_rate_limit(
+                factory,
+                scope="auth:concurrent",
+                key_material="one-client",
+                limit=5,
+                window_seconds=60,
+                now=120,
+            )
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            decisions = list(pool.map(hit, range(32)))
+        assert sum(decision.allowed for decision in decisions) == 5
+        assert max(decision.attempts for decision in decisions) == 32
+    finally:
+        engine.dispose()
